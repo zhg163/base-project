@@ -17,3 +17,30 @@
 ```bash
 git clone <repository-url>
 cd ai_project
+
+
+# 切换到 Python 3.11.6
+pyenv shell 3.11.6
+
+# 创建虚拟环境
+python -m venv venv
+
+# 激活虚拟环境
+# 在 macOS/Linux 上
+source venv/bin/activate
+
+# 验证 Python 版本
+python --version
+
+# 使用完整路径创建虚拟环境
+~/.pyenv/versions/3.11.6/bin/python -m venv venv
+
+# 激活虚拟环境
+source venv/bin/activate
+
+pip install -r requirements.txt
+# 或者
+pip install -e .
+
+deactivate
+
