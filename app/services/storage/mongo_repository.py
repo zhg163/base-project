@@ -190,4 +190,15 @@ class MongoRepository(Generic[T]):
     async def _run_async(self, func, *args, **kwargs):
         """将同步函数包装为异步执行"""
         import asyncio
-        return await asyncio.to_thread(func, *args, **kwargs) 
+        return await asyncio.to_thread(func, *args, **kwargs)
+    
+    async def find_by_session_id(self, session_id: str) -> Optional[T]:
+        """通过session_id字段查询单个文档
+        
+        Args:
+            session_id: 会话ID
+            
+        Returns:
+            实体对象，如果不存在则返回None
+        """
+        return await self.find_one({"session_id": session_id}) 

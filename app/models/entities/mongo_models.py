@@ -44,4 +44,48 @@ class EmbeddingRecord(MongoModel):
     document_id: Optional[str] = None
     chunk_index: Optional[int] = None
     source: str
-    metadata: Dict[str, Any] = Field(default_factory=dict) 
+    metadata: Dict[str, Any] = Field(default_factory=dict)
+
+class Role(MongoModel):
+    """角色数据模型"""
+    
+    _collection_name = "roles"
+    
+    name: str = Field(..., description="角色名称")
+    description: Optional[str] = Field(None, description="角色描述")
+    personality: Optional[str] = Field(None, description="角色性格")
+    speech_style: Optional[str] = Field(None, description="角色语言风格")
+    keywords: Optional[List[str]] = Field(default_factory=list, description="角色关键词")
+    temperature: Optional[float] = Field(0.7, description="生成温度")
+    prompt_templates: Optional[List[str]] = Field(default_factory=list, description="提示词模板")
+    system_prompt: Optional[str] = Field(None, description="系统提示词")
+    is_active: Optional[bool] = Field(True, description="是否激活")
+
+class RoleReference(MongoModel):
+    """角色引用数据模型"""
+    _collection_name = "role_references"
+    
+    role_id: str = Field(..., description="角色ID")
+    role_name: str = Field(..., description="角色名称")
+
+class Session(MongoModel):
+    """用户会话数据模型"""
+    
+    _collection_name = "sessions"
+    
+    class_id: str = Field(..., description="聊天室ID")
+    class_name: str = Field(..., description="聊天室名称")
+    user_id: str = Field(..., description="用户ID")
+    user_name: str = Field(..., description="用户名称")
+    roles: List[RoleReference] = Field(default_factory=list, description="角色列表")
+    session_id: str = Field(..., description="会话ID", index=True)
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: Optional[datetime] = None
+    is_active: bool = Field(True, description="是否激活")
+
+    class Config:
+        # 定义session_id的唯一索引
+        indexes = [
+            {"fields": ["session_id"], "unique": True}
+        ]
+        collection_name = "sessions" 

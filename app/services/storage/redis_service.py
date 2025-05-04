@@ -1,14 +1,22 @@
 import json
 from typing import Any, Dict, List, Optional, TypeVar, Generic, Type, Union, Set
-import redis
+import redis.asyncio as aioredis
 from redis.connection import ConnectionPool
 from redis.exceptions import RedisError
-from contextlib import contextmanager
+from contextlib import asynccontextmanager
+from datetime import datetime
 
 from app.core.config import settings
 from app.utils.logging import logger
 
 T = TypeVar('T')
+
+class DateTimeEncoder(json.JSONEncoder):
+    """datetime对象的JSON编码器"""
+    def default(self, obj):
+        if isinstance(obj, datetime):
+            return obj.isoformat()
+        return super().default(obj)
 
 class RedisService:
     """Redis基础服务，提供与Redis交互的基本能力"""
@@ -31,6 +39,7 @@ class RedisService:
         self.db = db if db is not None else settings.REDIS_DB
         self.password = password or settings.REDIS_PASSWORD
         self.decode_responses = decode_responses
+        self.pool_size = pool_size
         
         # 创建连接池
         self.pool = ConnectionPool(
@@ -39,32 +48,40 @@ class RedisService:
             db=self.db,
             password=self.password,
             decode_responses=self.decode_responses,
-            max_connections=pool_size
+            max_connections=self.pool_size
         )
         
-        # 延迟创建Redis客户端
+        # 延迟创建异步Redis客户端
         self._client = None
         logger.info(f"Redis service initialized for {self.host}:{self.port} db:{self.db}")
     
     @property
-    def client(self) -> redis.Redis:
-        """获取Redis客户端实例"""
+    async def client(self) -> aioredis.Redis:
+        """获取Redis客户端实例(异步)"""
         if self._client is None:
-            self._client = redis.Redis(connection_pool=self.pool)
+            self._client = aioredis.Redis(
+                host=self.host,
+                port=self.port,
+                db=self.db,
+                password=self.password,
+                decode_responses=self.decode_responses,
+                max_connections=self.pool_size
+            )
         return self._client
     
-    @contextmanager
-    def get_connection(self):
-        """获取Redis连接上下文管理器"""
+    @asynccontextmanager
+    async def get_connection(self):
+        """获取Redis连接上下文管理器(异步)"""
         try:
-            yield self.client
+            client = await self.client
+            yield client
             logger.debug("Redis connection used and returned to pool")
-        except RedisError as e:
+        except Exception as e:
             logger.error(f"Redis operation failed: {str(e)}", exc_info=e)
             raise
     
     # 基本操作 - 字符串
-    def set(self, key: str, value: Any, ex: int = None, 
+    async def set(self, key: str, value: Any, ex: int = None, 
             nx: bool = False, xx: bool = False) -> bool:
         """设置字符串值
         
@@ -79,17 +96,17 @@ class RedisService:
             设置成功返回True
         """
         try:
-            with self.get_connection() as conn:
+            async with self.get_connection() as conn:
                 # 如果值不是字符串，尝试JSON序列化
                 if not isinstance(value, (str, bytes, int, float)):
                     value = json.dumps(value)
                     
-                return conn.set(key, value, ex=ex, nx=nx, xx=xx)
+                return await conn.set(key, value, ex=ex, nx=nx, xx=xx)
         except Exception as e:
             logger.error(f"Failed to set key {key}: {str(e)}")
             return False
     
-    def get(self, key: str, default: Any = None) -> Any:
+    async def get(self, key: str, default: Any = None) -> Any:
         """获取字符串值
         
         Args:
@@ -100,8 +117,8 @@ class RedisService:
             存储的值，若不存在则返回default
         """
         try:
-            with self.get_connection() as conn:
-                value = conn.get(key)
+            async with self.get_connection() as conn:
+                value = await conn.get(key)
                 if value is None:
                     return default
                     
@@ -114,7 +131,7 @@ class RedisService:
             logger.error(f"Failed to get key {key}: {str(e)}")
             return default
     
-    def delete(self, *keys) -> int:
+    async def delete(self, *keys) -> int:
         """删除一个或多个键
         
         Args:
@@ -124,13 +141,13 @@ class RedisService:
             删除的键数量
         """
         try:
-            with self.get_connection() as conn:
-                return conn.delete(*keys)
+            async with self.get_connection() as conn:
+                return await conn.delete(*keys)
         except Exception as e:
             logger.error(f"Failed to delete keys {keys}: {str(e)}")
             return 0
     
-    def exists(self, key: str) -> bool:
+    async def exists(self, key: str) -> bool:
         """检查键是否存在
         
         Args:
@@ -140,13 +157,13 @@ class RedisService:
             键存在返回True，否则返回False
         """
         try:
-            with self.get_connection() as conn:
-                return bool(conn.exists(key))
+            async with self.get_connection() as conn:
+                return bool(await conn.exists(key))
         except Exception as e:
             logger.error(f"Failed to check existence of key {key}: {str(e)}")
             return False
     
-    def expire(self, key: str, seconds: int) -> bool:
+    async def expire(self, key: str, seconds: int) -> bool:
         """设置键的过期时间
         
         Args:
@@ -157,14 +174,14 @@ class RedisService:
             设置成功返回True
         """
         try:
-            with self.get_connection() as conn:
-                return bool(conn.expire(key, seconds))
+            async with self.get_connection() as conn:
+                return bool(await conn.expire(key, seconds))
         except Exception as e:
             logger.error(f"Failed to set expiry for key {key}: {str(e)}")
             return False
     
     # 哈希操作
-    def hset(self, name: str, key: str, value: Any) -> int:
+    async def hset(self, name: str, key: str, value: Any) -> int:
         """设置哈希表中的字段值
         
         Args:
@@ -176,16 +193,16 @@ class RedisService:
             新字段返回1，更新字段返回0
         """
         try:
-            with self.get_connection() as conn:
+            async with self.get_connection() as conn:
                 # 如果值不是字符串，尝试JSON序列化
                 if not isinstance(value, (str, bytes, int, float)):
                     value = json.dumps(value)
-                return conn.hset(name, key, value)
+                return await conn.hset(name, key, value)
         except Exception as e:
             logger.error(f"Failed to set hash field {name}:{key}: {str(e)}")
             return 0
     
-    def hget(self, name: str, key: str, default: Any = None) -> Any:
+    async def hget(self, name: str, key: str, default: Any = None) -> Any:
         """获取哈希表中字段的值
         
         Args:
@@ -197,8 +214,8 @@ class RedisService:
             字段值，不存在则返回default
         """
         try:
-            with self.get_connection() as conn:
-                value = conn.hget(name, key)
+            async with self.get_connection() as conn:
+                value = await conn.hget(name, key)
                 if value is None:
                     return default
                 
@@ -211,7 +228,7 @@ class RedisService:
             logger.error(f"Failed to get hash field {name}:{key}: {str(e)}")
             return default
     
-    def hdel(self, name: str, *keys) -> int:
+    async def hdel(self, name: str, *keys) -> int:
         """删除哈希表中的一个或多个字段
         
         Args:
@@ -222,13 +239,13 @@ class RedisService:
             删除的字段数量
         """
         try:
-            with self.get_connection() as conn:
-                return conn.hdel(name, *keys)
+            async with self.get_connection() as conn:
+                return await conn.hdel(name, *keys)
         except Exception as e:
             logger.error(f"Failed to delete hash fields {name}:{keys}: {str(e)}")
             return 0
     
-    def hgetall(self, name: str) -> Dict:
+    async def hgetall(self, name: str) -> Dict:
         """获取哈希表中所有字段和值
         
         Args:
@@ -238,8 +255,8 @@ class RedisService:
             包含所有字段和值的字典
         """
         try:
-            with self.get_connection() as conn:
-                result = conn.hgetall(name)
+            async with self.get_connection() as conn:
+                result = await conn.hgetall(name)
                 
                 # 尝试解析所有值为JSON
                 parsed = {}
@@ -254,7 +271,7 @@ class RedisService:
             return {}
     
     # 列表操作
-    def lpush(self, name: str, *values) -> int:
+    async def lpush(self, name: str, *values) -> int:
         """将一个或多个值推入列表左端
         
         Args:
@@ -265,7 +282,7 @@ class RedisService:
             操作后列表长度
         """
         try:
-            with self.get_connection() as conn:
+            async with self.get_connection() as conn:
                 # 序列化非基本类型值
                 serialized = []
                 for value in values:
@@ -273,12 +290,12 @@ class RedisService:
                         serialized.append(json.dumps(value))
                     else:
                         serialized.append(value)
-                return conn.lpush(name, *serialized)
+                return await conn.lpush(name, *serialized)
         except Exception as e:
             logger.error(f"Failed to push to list {name}: {str(e)}")
             return 0
     
-    def rpush(self, name: str, *values) -> int:
+    async def rpush(self, name: str, *values) -> int:
         """将一个或多个值推入列表右端
         
         Args:
@@ -289,7 +306,7 @@ class RedisService:
             操作后列表长度
         """
         try:
-            with self.get_connection() as conn:
+            async with self.get_connection() as conn:
                 # 序列化非基本类型值
                 serialized = []
                 for value in values:
@@ -297,12 +314,12 @@ class RedisService:
                         serialized.append(json.dumps(value))
                     else:
                         serialized.append(value)
-                return conn.rpush(name, *serialized)
+                return await conn.rpush(name, *serialized)
         except Exception as e:
             logger.error(f"Failed to push to list {name}: {str(e)}")
             return 0
     
-    def lrange(self, name: str, start: int, end: int) -> List:
+    async def lrange(self, name: str, start: int, end: int) -> List:
         """获取列表指定范围内的元素
         
         Args:
@@ -314,8 +331,8 @@ class RedisService:
             指定范围内的元素列表
         """
         try:
-            with self.get_connection() as conn:
-                result = conn.lrange(name, start, end)
+            async with self.get_connection() as conn:
+                result = await conn.lrange(name, start, end)
                 
                 # 尝试解析所有值为JSON
                 parsed = []
@@ -330,7 +347,7 @@ class RedisService:
             return []
     
     # 集合操作
-    def sadd(self, name: str, *values) -> int:
+    async def sadd(self, name: str, *values) -> int:
         """向集合添加一个或多个成员
         
         Args:
@@ -341,7 +358,7 @@ class RedisService:
             添加的成员数量
         """
         try:
-            with self.get_connection() as conn:
+            async with self.get_connection() as conn:
                 # 序列化非基本类型值
                 serialized = []
                 for value in values:
@@ -349,12 +366,12 @@ class RedisService:
                         serialized.append(json.dumps(value))
                     else:
                         serialized.append(value)
-                return conn.sadd(name, *serialized)
+                return await conn.sadd(name, *serialized)
         except Exception as e:
             logger.error(f"Failed to add to set {name}: {str(e)}")
             return 0
     
-    def smembers(self, name: str) -> Set:
+    async def smembers(self, name: str) -> Set:
         """获取集合中的所有成员
         
         Args:
@@ -364,8 +381,8 @@ class RedisService:
             包含所有成员的集合
         """
         try:
-            with self.get_connection() as conn:
-                result = conn.smembers(name)
+            async with self.get_connection() as conn:
+                result = await conn.smembers(name)
                 
                 # 尝试解析所有值为JSON
                 parsed = set()
@@ -384,7 +401,7 @@ class RedisService:
             logger.error(f"Failed to get members from set {name}: {str(e)}")
             return set()
     
-    def srem(self, name: str, *values) -> int:
+    async def srem(self, name: str, *values) -> int:
         """从集合中移除一个或多个成员
         
         Args:
@@ -395,7 +412,7 @@ class RedisService:
             移除的成员数量
         """
         try:
-            with self.get_connection() as conn:
+            async with self.get_connection() as conn:
                 # 序列化非基本类型值
                 serialized = []
                 for value in values:
@@ -403,7 +420,29 @@ class RedisService:
                         serialized.append(json.dumps(value))
                     else:
                         serialized.append(value)
-                return conn.srem(name, *serialized)
+                return await conn.srem(name, *serialized)
         except Exception as e:
             logger.error(f"Failed to remove from set {name}: {str(e)}")
             return 0
+
+    async def set_session(self, session_id: str, session_data: dict, expire_seconds: int = 86400):
+        """将会话数据存储到Redis
+        
+        Args:
+            session_id: 会话ID
+            session_data: 会话数据（字典格式）
+            expire_seconds: 过期时间（秒），默认24小时
+        """
+        key = f"custom_session:{session_id}"
+        await self.set(key, json.dumps(session_data, cls=DateTimeEncoder), ex=expire_seconds)
+        logger.debug(f"Session stored in Redis: {key}")
+
+    async def delete_session(self, session_id: str):
+        """从Redis删除会话数据
+        
+        Args:
+            session_id: 会话ID
+        """
+        key = f"custom_session:{session_id}"
+        await self.delete(key)
+        logger.debug(f"Session deleted from Redis: {key}")

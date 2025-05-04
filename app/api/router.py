@@ -6,7 +6,7 @@ API路由管理
 """
 
 from fastapi import APIRouter
-from app.api.endpoints import users  # 导入用户路由模块
+from app.api.endpoints import users, roles, sessions  # 添加sessions导入
 
 # 创建主路由
 api_router = APIRouter()
@@ -16,5 +16,9 @@ api_router = APIRouter()
 
 # 注册用户相关路由
 api_router.include_router(users.router, prefix="/users", tags=["用户"])
+# 注册角色相关路由
+api_router.include_router(roles.router, prefix="/roles", tags=["角色"])
+# 注册会话相关路由
+api_router.include_router(sessions.router, prefix="/custom-sessions", tags=["会话"])
 # api_router.include_router(chat.router, prefix="/chat", tags=["聊天"])
 # api_router.include_router(documents.router, prefix="/documents", tags=["文档"])
