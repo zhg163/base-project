@@ -1,0 +1,23 @@
+fetch(`${window.location.origin}${endpointURL}`, {
+    method: 'POST',
+    headers: {
+        'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(payload)
+})
+.then(response => response.text())
+.then(text => {
+    let data;
+    if (text.startsWith('data: ')) {
+        const jsonStr = text.replace(/^data: /, '');
+        data = JSON.parse(jsonStr);
+    } else {
+        data = JSON.parse(text);
+    }
+    
+    processEvent(data);
+})
+.catch(error => {
+    console.error('fetch错误:', error);
+    handleError('请求错误: ' + error.message);
+}); 

@@ -13,6 +13,8 @@ from app.core.config import settings
 from app.core.events import startup_event_handler, shutdown_event_handler
 from app.api.middleware.logging import RequestLoggingMiddleware
 from app.utils.logging import get_logger
+from app.api.endpoints import chat
+from app.core.service_initializer import initialize_services
 
 # 初始化应用日志
 logger = get_logger("main")
@@ -26,6 +28,9 @@ app = FastAPI(
     redirect_slashes=False
 )
 
+# 在这里调用服务初始化函数
+initialize_services()
+
 # 挂载静态文件目录
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
 
@@ -35,12 +40,17 @@ app.add_middleware(RequestLoggingMiddleware)
 # 注册路由
 app.include_router(api_router, prefix=settings.API_PREFIX)
 
+
 # 注册事件处理器
 app.add_event_handler("startup", startup_event_handler(app))
 app.add_event_handler("shutdown", shutdown_event_handler(app))
 
 # 记录应用初始化
 logger.info(f"Application {settings.PROJECT_NAME} initialized")
+
+@app.get("/")
+async def root():
+    return {"message": "Welcome to AI Chat API"}
 
 if __name__ == "__main__":
     logger.info(f"Starting uvicorn server at {settings.HOST}:{settings.PORT}")

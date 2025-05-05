@@ -44,3 +44,5 @@ pip install -e .
 
 deactivate
 
+# 查看已安装的所有包并更新requirements.txt
+pip freeze > complete_requirements.txt

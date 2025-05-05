@@ -65,7 +65,7 @@ class JsonFormatter(logging.Formatter):
         if hasattr(record, "data") and record.data:
             log_record.update(record.data)
         
-        return json.dumps(log_record)
+        return json.dumps(log_record, ensure_ascii=False)
 
 
 class RequestIdFilter(logging.Filter):
