@@ -67,6 +67,7 @@ class RoleReference(MongoModel):
     
     role_id: str = Field(..., description="角色ID")
     role_name: str = Field(..., description="角色名称")
+    system_prompt: Optional[str] = None
 
 class Session(MongoModel):
     """用户会话数据模型"""

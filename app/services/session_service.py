@@ -2,29 +2,56 @@ import uuid
 import hashlib
 from typing import List, Optional
 from datetime import datetime
+from bson import ObjectId
 
-from app.models.entities.mongo_models import Session, RoleReference
+from app.models.entities.mongo_models import Session, RoleReference, Role
 from app.services.storage.session_repository import SessionRepository
+from app.services.storage.mongo_repository import MongoRepository
 from app.services.storage.redis_service import RedisService
 from app.utils.logging import logger
 
 class SessionService:
     """会话服务，处理会话业务逻辑"""
     
-    def __init__(self, session_repository: SessionRepository, redis_service=None):
+    def __init__(self, session_repository: SessionRepository, redis_service=None, mongo_repository=None):
         self.session_repository = session_repository
         self.redis_service = redis_service
+        self.mongo_repository = mongo_repository
     
     async def create_session(self, class_name: str, user_id: str, user_name: str, roles: List[dict], class_id: Optional[str] = None) -> Session:
         """创建新会话，生成会话ID"""
         # 获取当前时间戳
         timestamp = str(datetime.now().timestamp())
         
-        # 构建角色信息列表
-        roles_data = [
-            RoleReference(role_id=role["role_id"], role_name=role["role_name"])
-            for role in roles
-        ]
+        # 构建角色信息列表，并获取system_prompt
+        roles_data = []
+        for role in roles:
+            role_reference = RoleReference(
+                role_id=role["role_id"], 
+                role_name=role["role_name"]
+            )
+            
+            # 如果传入的角色数据中已有system_prompt，则使用
+            if "system_prompt" in role and role["system_prompt"]:
+                role_reference.system_prompt = role["system_prompt"]
+            # 否则从角色表中查询，使用通用仓库方法
+            elif self.mongo_repository:
+                try:
+                    logger.debug(f"Fetching role data for role_id: {role['role_id']}")
+                    role_doc = await self.mongo_repository.find_one({"_id": ObjectId(role["role_id"])})
+                    if role_doc:
+                        logger.debug(f"Role found: {role_doc.name}")
+                        if role_doc.system_prompt:
+                            role_reference.system_prompt = role_doc.system_prompt
+                            logger.debug(f"Assigned system_prompt: {role_doc.system_prompt[:20]}...")
+                        else:
+                            logger.warning(f"Role {role_doc.name} has no system_prompt")
+                    else:
+                        logger.warning(f"No role found with id: {role['role_id']}")
+                except Exception as e:
+                    logger.error(f"Error fetching role data for {role['role_id']}: {e}", exc_info=True)
+            
+            roles_data.append(role_reference)
         
         # 连接所有角色名称
         role_names = "".join([role["role_name"] for role in roles])

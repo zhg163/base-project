@@ -81,7 +81,11 @@ class SessionController:
         # 特殊处理角色列表
         if "roles" in update_data:
             roles_data = [
-                RoleReference(role_id=role.role_id, role_name=role.role_name)
+                RoleReference(
+                    role_id=role.role_id, 
+                    role_name=role.role_name,
+                    system_prompt=role.system_prompt
+                )
                 for role in session_data.roles
             ]
             session.roles = roles_data

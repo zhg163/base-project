@@ -1,7 +1,11 @@
+from fastapi import Depends
+from app.services.storage.mongo_repository import MongoRepository
+from app.services.storage.session_repository import SessionRepository
+from app.services.storage.redis_service import RedisService
+
 def get_user_repository():
     """获取用户仓库实例"""
     from app.services.storage.mongo_service import MongoService
-    from app.services.storage.mongo_repository import MongoRepository
     from app.models.entities.mongo_models import User
     from app.core.config import settings
     from app.utils.logging import logger
@@ -16,23 +20,6 @@ def get_user_repository():
     
     logger.debug(f"Creating User repository")
     return MongoRepository(User, mongo_service=mongo_service)
-
-def get_role_repository():
-    """获取角色仓库实例"""
-    from app.services.storage.mongo_service import MongoService
-    from app.services.storage.mongo_repository import MongoRepository
-    from app.models.entities.mongo_models import Role
-    from app.core.config import settings
-    from app.utils.logging import logger
-    
-    logger.debug(f"Creating RoleRepository")
-    
-    mongo_service = MongoService(
-        uri=settings.MONGODB_URL,
-        db_name=settings.MONGODB_DB_NAME
-    )
-    
-    return MongoRepository(Role, mongo_service=mongo_service)
 
 def get_session_repository():
     """获取会话存储库实例"""
@@ -64,16 +51,49 @@ async def get_redis_service():
     )
     return redis_service
 
-async def get_session_service():
-    """获取会话服务实例（异步）"""
+def get_mongo_repository_factory():
+    """获取MongoDB仓库工厂函数"""
+    from app.services.storage.mongo_service import MongoService
+    from app.services.storage.mongo_repository import MongoRepository
+    from app.core.config import settings
+    
+    # 创建共享的MongoDB服务实例
+    mongo_service = MongoService(
+        uri=settings.MONGODB_URL,
+        db_name=settings.MONGODB_DB_NAME
+    )
+    
+    # 返回一个工厂函数，可以为任何模型创建仓库
+    def create_repository(model_class):
+        return MongoRepository(model_class, mongo_service=mongo_service)
+    
+    return create_repository
+
+def get_role_repository():
+    """获取角色仓库实例 - 使用通用MongoDB仓库"""
+    from app.services.storage.mongo_service import MongoService
+    from app.models.entities.mongo_models import Role
+    from app.core.config import settings
+    
+    mongo_service = MongoService(
+        uri=settings.MONGODB_URL,
+        db_name=settings.MONGODB_DB_NAME
+    )
+    
+    # 使用通用仓库，传入Role模型
+    return MongoRepository(Role, mongo_service=mongo_service)
+
+def get_session_service(
+    session_repository: SessionRepository = Depends(get_session_repository),
+    redis_service: RedisService = Depends(get_redis_service),
+    role_repository = Depends(get_role_repository)
+):
+    """获取会话服务实例"""
     from app.services.session_service import SessionService
     
-    # 获取依赖的服务
-    session_repository = get_session_repository()  # 同步函数可直接调用
-    redis_service = await get_redis_service()      # 异步函数必须await
-    
-    # 创建并返回会话服务
     return SessionService(
         session_repository=session_repository,
-        redis_service=redis_service
+        redis_service=redis_service,
+        mongo_repository=role_repository
     )
+

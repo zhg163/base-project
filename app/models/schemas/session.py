@@ -7,6 +7,11 @@ class RoleInfoSchema(BaseModel):
     role_id: str
     role_name: str
 
+class RoleReferenceSchema(BaseModel):
+    role_id: str
+    role_name: str
+    system_prompt: Optional[str] = None
+
 class SessionBase(BaseModel):
     """会话基础数据模型"""
     class_id: Optional[str] = Field(None, description="聊天室ID")
@@ -15,9 +20,12 @@ class SessionBase(BaseModel):
     user_name: str = Field(..., description="用户名称")
     roles: List[RoleInfoSchema] = Field(..., description="角色列表")
 
-class SessionCreate(SessionBase):
-    """创建会话的数据模型"""
-    pass
+class SessionCreate(BaseModel):
+    class_name: str
+    user_id: str
+    user_name: str
+    roles: List[RoleReferenceSchema]
+    class_id: Optional[str] = None
 
 class SessionUpdate(BaseModel):
     """更新会话的数据模型"""
