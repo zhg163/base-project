@@ -986,7 +986,11 @@
             let responseContainer = null;
             let messageTimeout; // Add timeout variable for safety
 
-
+            // 添加全局变量用于存储上一次的完整消息
+            let previousFullMessage = '';
+            let typingTimer = null;
+            let currentTypingIndex = 0;
+            let pendingText = '';
 
             // 解析URL参数函数
             function getUrlParams() {
@@ -2231,32 +2235,73 @@
                 
                 // 处理内容消息
                 if (data.content && data.role_name) {
-                    // 累积消息内容
-                    window.currentMessageContent = (window.currentMessageContent || '') + data.content;
+                    // 获取当前完整消息内容
+                    const fullMessage = data.content;
                     
+                    // 找出新增内容(与上一次响应相比)
+                    let newContent = '';
+                    
+                    // 检查是否是增量更新
+                    if (fullMessage.startsWith(previousFullMessage) && fullMessage.length > previousFullMessage.length) {
+                        // 只取新增部分
+                        newContent = fullMessage.substring(previousFullMessage.length);
+                    } else {
+                        // 全新的内容
+                        newContent = fullMessage;
+                    }
+                    
+                    console.log('新增内容:', newContent);
+                    previousFullMessage = fullMessage;
+                    
+                    // 获取或创建响应容器
                     let responseContainer = document.getElementById('responseContainer');
                     if (!responseContainer) {
                         currentRole = { name: data.role_name, id: "unknown" };
                         responseContainer = createResponseContainer();
                         chatContainer.appendChild(responseContainer);
-                        window.currentMessageContent = data.content;
                     }
                     
                     // 获取内容区域
                     const content = responseContainer.querySelector('.response-content');
                     if (content) {
-                        // 移动内容区域到换行后位置
-                        if (responseContainer.dataset.hasThinking === 'true' && !content.dataset.positionAdjusted) {
-                            content.style.marginTop = '10px';
-                            content.dataset.positionAdjusted = 'true';
+                        // 初始化内容
+                        if (!content.dataset.fullText) {
+                            content.dataset.fullText = '';
                         }
                         
-                        const cleanText = window.currentMessageContent
-                            .replace(/『[\w]+』/g, '')
-                            .replace(/【.*?】/g, '');
+                        // 将新内容添加到待显示队列
+                        pendingText += newContent;
                         
-                        content.textContent = cleanText;
+                        // 如果没有正在执行打字效果，则开始
+                        if (!typingTimer) {
+                            typeNextCharacter(content);
+                        }
                     }
+                }
+            }
+
+            // 打字机效果函数
+            function typeNextCharacter(element) {
+                if (pendingText.length > 0) {
+                    // 提取一个字符并添加到显示内容
+                    const char = pendingText.charAt(0);
+                    pendingText = pendingText.substring(1);
+                    
+                    // 更新显示内容
+                    element.dataset.fullText += char;
+                    element.textContent = element.dataset.fullText;
+                    
+                    // 滚动到最新内容
+                    chatContainer.scrollTop = chatContainer.scrollHeight;
+                    
+                    // 设置下一个字符的定时器
+                    typingTimer = setTimeout(() => {
+                        typeNextCharacter(element);
+                    }, typingSpeed);
+                } else {
+                    // 没有更多内容需要显示，清除定时器
+                    clearTimeout(typingTimer);
+                    typingTimer = null;
                 }
             }
         });
