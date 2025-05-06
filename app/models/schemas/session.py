@@ -27,11 +27,18 @@ class SessionCreate(BaseModel):
     roles: List[RoleReferenceSchema]
     class_id: Optional[str] = None
 
+
+class RoleReference(BaseModel):
+    role_id: str
+    role_name: str
+    system_prompt: Optional[str] = None
+
 class SessionUpdate(BaseModel):
     """更新会话的数据模型"""
     class_name: Optional[str] = None
-    roles: Optional[List[RoleInfoSchema]] = None
+    roles: Optional[List[RoleReference]] = None
     is_active: Optional[bool] = None
+    session_id: Optional[str] = None
 
 class SessionResponse(SessionBase):
     """会话响应数据模型"""
@@ -40,6 +47,7 @@ class SessionResponse(SessionBase):
     created_at: datetime
     updated_at: Optional[datetime] = None
     is_active: bool
+    roles: List[RoleReference]
 
     class Config:
         from_attributes = True 

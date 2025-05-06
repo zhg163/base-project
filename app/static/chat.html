@@ -730,6 +730,7 @@
             </div>
             <div id="textModalBody" class="text-modal-body"></div>
             <div class="text-modal-footer">
+                <button id="textModalUpdateBtn" class="btn btn-primary">更新提示词</button>
                 <button id="textModalCloseBtn" class="btn btn-secondary">关闭</button>
             </div>
         </div>
@@ -917,12 +918,12 @@
                     // 检查是否有角色数据
                     if (sessionData.roles && sessionData.roles.length > 0) {
                         // 更新角色信息显示
-                        roleInfo.innerHTML = sessionData.roles.map(role => `
+                        roleInfo.innerHTML = sessionData.roles.map((role, index) => `
                             <div class="role-info">
                                 <strong>${role.role_name || '未命名角色'}</strong><br>
                                 <small class="text-muted">角色ID: ${role.role_id}</small><br>
                                 ${role.system_prompt ?
-                                    `<div class="small mt-2 text-expandable" style="max-height: 150px; overflow-y: auto; background-color: #f8f9fa; padding: 8px; border-radius: 4px; font-family: monospace;" data-content="${encodeURIComponent(role.system_prompt)}" data-title="${encodeURIComponent(role.role_name || '未命名角色')} 的系统提示词">${role.system_prompt}</div>`
+                                    `<div class="small mt-2 text-expandable" style="max-height: 150px; overflow-y: auto; background-color: #f8f9fa; padding: 8px; border-radius: 4px; font-family: monospace;" data-content="${encodeURIComponent(role.system_prompt)}" data-title="${encodeURIComponent(role.role_name || '未命名角色')} 的系统提示词" data-role-id="${role.role_id}" data-role-index="${index}">${role.system_prompt}</div>`
                                     : '<small class="text-muted">无系统提示词</small>'}
                             </div>
                         `).join('');
@@ -1716,36 +1717,116 @@
             });
 
             // 显示详细内容弹窗
-            function showDetailModal(title, content, isCode = false) {
+            function showDetailModal(title, content, isCode = false, roleId = null, roleIndex = null) {
                 textModalTitle.textContent = title || '详细内容';
                 
                 // 清空之前的内容
                 textModalBody.innerHTML = '';
                 
-                // 处理内容显示方式
-                if (isCode) {
-                    // 如果是代码，使用pre和code标签包装
-                    const pre = document.createElement('pre');
-                    const code = document.createElement('code');
-                    code.textContent = content || '无内容';
-                    pre.appendChild(code);
-                    textModalBody.appendChild(pre);
-                    
-                    // 如果有highlight.js，应用语法高亮
-                    if (window.hljs) {
-                        window.hljs.highlightElement(code);
-                    }
-                } else {
-                    // 普通文本
-                    textModalBody.textContent = content || '无内容';
+                // 创建文本区域
+                const textarea = document.createElement('textarea');
+                textarea.className = 'form-control';
+                textarea.style.width = '100%';
+                textarea.style.minHeight = '300px';
+                textarea.value = content || '';
+                textModalBody.appendChild(textarea);
+                
+                // 存储角色ID和索引
+                textModal.dataset.roleId = roleId || '';
+                textModal.dataset.roleIndex = roleIndex || '';
+                
+                // 显示或隐藏更新按钮
+                const updateBtn = document.getElementById('textModalUpdateBtn');
+                if (updateBtn) {
+                    updateBtn.style.display = roleId ? 'inline-block' : 'none';
                 }
                 
                 // 显示弹窗
                 textModal.style.display = 'block';
                 document.body.style.overflow = 'hidden'; // 防止背景滚动
+            }
+
+            // 修改文本弹窗元素，添加更新按钮
+            // 在 <div class="text-modal-footer"> 中添加
+            textModal.querySelector('.text-modal-footer').innerHTML = `
+                <button id="textModalUpdateBtn" class="btn btn-primary">更新提示词</button>
+                <button id="textModalCloseBtn" class="btn btn-secondary">关闭</button>
+            `;
+
+            // 更新事件监听
+            document.getElementById('textModalUpdateBtn').addEventListener('click', updateSystemPrompt);
+            document.getElementById('textModalCloseBtn').addEventListener('click', closeTextModal);
+
+            // 添加更新系统提示词的函数
+            async function updateSystemPrompt() {
+                // 获取角色ID和提示词内容
+                const roleId = textModal.dataset.roleId;
+                const roleIndex = parseInt(textModal.dataset.roleIndex || '-1');
+                const newPrompt = textModalBody.querySelector('textarea').value.trim();
                 
-                // 滚动到顶部
-                textModalBody.scrollTop = 0;
+                if (!roleId || roleIndex < 0 || !currentSessionId) {
+                    showToast('无法更新: 缺少必要信息');
+                    return;
+                }
+                
+                try {
+                    // 显示加载状态
+                    const updateBtn = document.getElementById('textModalUpdateBtn');
+                    const originalText = updateBtn.textContent;
+                    updateBtn.textContent = '更新中...';
+                    updateBtn.disabled = true;
+                    
+                    // 获取当前会话信息
+                    const response = await fetch(`/api/custom-sessions/${currentSessionId}`);
+                    if (!response.ok) throw new Error('获取会话信息失败');
+                    const sessionData = await response.json();
+                    
+                    // 更新指定角色的系统提示词
+                    if (!sessionData.roles || !sessionData.roles[roleIndex]) {
+                        throw new Error('找不到指定角色');
+                    }
+                    
+                    // 创建更新请求数据
+                    const updateData = {
+                        roles: sessionData.roles.map((role, idx) => {
+                            if (idx === roleIndex) {
+                                return {
+                                    ...role,
+                                    system_prompt: newPrompt
+                                };
+                            }
+                            return role;
+                        })
+                    };
+                    
+                    // 发送更新请求
+                    const updateResponse = await fetch(`/api/custom-sessions/${currentSessionId}`, {
+                        method: 'PUT',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify(updateData)
+                    });
+                    
+                    if (!updateResponse.ok) throw new Error('更新失败');
+                    
+                    // 显示成功消息
+                    showToast('系统提示词更新成功');
+                    
+                    // 刷新角色信息显示
+                    fetchSessionRoles(currentSessionId);
+                    
+                    // 关闭弹窗
+                    closeTextModal();
+                } catch (error) {
+                    console.error('更新系统提示词失败:', error);
+                    showToast(`更新失败: ${error.message}`);
+                } finally {
+                    // 恢复按钮状态
+                    const updateBtn = document.getElementById('textModalUpdateBtn');
+                    updateBtn.textContent = '更新提示词';
+                    updateBtn.disabled = false;
+                }
             }
 
             // 事件监听
@@ -2267,7 +2348,7 @@
                     viewButton.className = 'reference-view-btn';
                     viewButton.innerHTML = '<i class="fas fa-expand-alt"></i> 查看全文';
                     viewButton.onclick = function() {
-                        showModal(title || '检索内容', content);
+                        showDetailModal(title || '检索内容', content);
                     };
                     card.appendChild(viewButton);
                 }
@@ -2277,18 +2358,6 @@
                 
                 // 滚动到最新内容
                 chatContainer.scrollTop = chatContainer.scrollHeight;
-            }
-
-            // 显示详情模态框的函数
-            function showModal(title, content) {
-                // 如果已经有modal函数，使用它
-                if (typeof showDetailModal === 'function') {
-                    showDetailModal(title, content);
-                    return;
-                }
-                
-                // 否则使用alert作为备用
-                alert(`${title}\n\n${content}`);
             }
 
             // 将这些函数添加回来
@@ -2425,9 +2494,11 @@
                     const expandable = e.target.closest('.text-expandable');
                     const content = decodeURIComponent(expandable.getAttribute('data-content') || '');
                     const title = decodeURIComponent(expandable.getAttribute('data-title') || '详细内容');
+                    const roleId = expandable.getAttribute('data-role-id');
+                    const roleIndex = expandable.getAttribute('data-role-index');
                     
                     if (content) {
-                        showDetailModal(title, content);
+                        showDetailModal(title, content, false, roleId, roleIndex);
                     }
                 }
             });

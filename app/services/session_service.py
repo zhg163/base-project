@@ -31,11 +31,8 @@ class SessionService:
                 role_name=role["role_name"]
             )
             
-            # 如果传入的角色数据中已有system_prompt，则使用
-            if "system_prompt" in role and role["system_prompt"]:
-                role_reference.system_prompt = role["system_prompt"]
-            # 否则从角色表中查询，使用通用仓库方法
-            elif self.mongo_repository:
+            # 直接从角色表中查询，使用通用仓库方法
+            if self.mongo_repository:
                 try:
                     logger.debug(f"Fetching role data for role_id: {role['role_id']}")
                     role_doc = await self.mongo_repository.find_one({"_id": ObjectId(role["role_id"])})
@@ -98,7 +95,23 @@ class SessionService:
 
     async def get_session_by_id(self, session_id: str) -> Optional[Session]:
         """根据session_id获取会话"""
-        return await self.session_repository.find_one({"session_id": session_id})
+        session = await self.session_repository.find_one({"session_id": session_id})
+        
+        # 添加日志 - 检查数据库返回内容
+        if session:
+            logger.info(f"Retrieved session from DB: {session_id}")
+            if session.roles:
+                for i, role in enumerate(session.roles):
+                    logger.info(f"Role {i} in session: id={role.role_id}, name={role.role_name}")
+                    # 检查system_prompt是否存在
+                    if hasattr(role, 'system_prompt'):
+                        logger.info(f"Role {i} has system_prompt: {role.system_prompt and 'Yes' or 'None'}")
+                    else:
+                        logger.warning(f"Role {i} has no system_prompt attribute")
+        else:
+            logger.warning(f"No session found with id: {session_id}")
+        
+        return session
 
     async def delete_session(self, session_id: str) -> bool:
         """删除会话"""

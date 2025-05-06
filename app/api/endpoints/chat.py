@@ -1,9 +1,10 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from pydantic import BaseModel
 from typing import Optional, Dict, Any
 from fastapi.responses import StreamingResponse
 
 from app.services.chat_service import ChatService
+from app.api.deps import get_chat_service  # 导入依赖函数
 
 router = APIRouter()
 
@@ -23,23 +24,35 @@ class ChatResponse(BaseModel):
     finish_reason: str
 
 @router.post("/chat")
-async def chat_post(
-    request: ChatRequest,
-    chat_service: ChatService = Depends()
+async def chat(
+    request: Request,
+    chat_service: ChatService = Depends(get_chat_service)
 ):
-    """聊天接口 - POST方法"""
-    # 获取生成器而不是尝试await它
-    generator = chat_service.process_message_stream(
-        message=request.message,
-        session_id=request.session_id,
-        model_type=request.model_type,
-        system_prompt=request.system_prompt,
-        temperature=request.temperature
-    )
+    """处理聊天请求"""
+    # 使用JSON而不是表单
+    body = await request.json()
     
-    # 返回流式响应
+    # 从JSON中提取参数(注意这里使用body而不是form_data)
+    message = body.get("message")
+    session_id = body.get("session_id")
+    
+    # 添加其他有效参数
+    model_type = body.get("model_type")
+    system_prompt = body.get("system_prompt")
+    temperature = body.get("temperature", 0.7)
+    
+    if not message:
+        raise HTTPException(status_code=422, detail="消息内容不能为空")
+    
+    # 调用服务，只传递方法支持的参数
     return StreamingResponse(
-        content=generator,
+        chat_service.process_message_stream(
+            message=message,
+            session_id=session_id,
+            model_type=model_type,
+            system_prompt=system_prompt,
+            temperature=temperature
+        ),
         media_type="text/event-stream"
     )
 

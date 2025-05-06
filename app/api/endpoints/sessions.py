@@ -2,11 +2,12 @@ from typing import List, Dict, Any, Optional
 from fastapi import APIRouter, HTTPException, Depends, Body, Query, status
 from app.models.entities.mongo_models import Session, RoleReference
 from app.services.storage.session_repository import SessionRepository
-from app.api.deps import get_session_repository, get_session_service
+from app.api.deps import get_session_repository, get_session_service, get_role_repository
 from app.models.schemas.session import SessionCreate, SessionResponse, SessionUpdate
 from app.utils.logging import logger
 from datetime import datetime
 from app.services.session_service import SessionService
+from bson.objectid import ObjectId
 
 router = APIRouter()
 
@@ -39,13 +40,33 @@ class SessionController:
     @router.get("/{session_id}", response_model=SessionResponse)
     async def get_session(
         session_id: str,
-        session_repository: SessionRepository = Depends(get_session_repository)
+        session_service: SessionService = Depends(get_session_service)
     ):
-        """获取特定会话"""
-        # 使用session_id字段查询
-        session = await session_repository.find_by_session_id(session_id)
+        """获取会话详情"""
+        session = await session_service.get_session_by_id(session_id)
         if not session:
             raise HTTPException(status_code=404, detail="会话不存在")
+        
+        # 添加日志 - 检查API响应前的数据
+        logger.info(f"Session to be returned in API: {session_id}")
+        for i, role in enumerate(session.roles):
+            logger.info(f"API response role {i}: id={role.role_id}, name={role.role_name}")
+            if hasattr(role, 'system_prompt'):
+                logger.info(f"API role {i} system_prompt: {role.system_prompt or 'None'}")
+            else:
+                logger.warning(f"API role {i} has no system_prompt attribute")
+        
+        # 检查model_dump后的数据
+        session_dict = session.model_dump()
+        logger.info(f"Session after model_dump - keys: {session_dict.keys()}")
+        if 'roles' in session_dict:
+            for i, role in enumerate(session_dict['roles']):
+                logger.info(f"Dumped role {i} keys: {role.keys()}")
+                if 'system_prompt' in role:
+                    logger.info(f"Dumped role {i} system_prompt: {role.get('system_prompt')}")
+                else:
+                    logger.warning(f"Dumped role {i} missing system_prompt key")
+        
         return session
 
     @router.post("", response_model=SessionResponse, status_code=status.HTTP_201_CREATED)
@@ -98,7 +119,19 @@ class SessionController:
         # 添加更新时间
         session.updated_at = datetime.utcnow()
         
+        # 更新MongoDB
         updated_session = await session_service.session_repository.update(session)
+        
+        # 同步更新到Redis
+        if session_service.redis_service:
+            # 转换为字典
+            session_dict = updated_session.model_dump()
+            # 保存到Redis
+            await session_service.redis_service.set_session(
+                session_id=session_id,
+                session_data=session_dict
+            )
+        
         return updated_session
 
     @router.delete("/{session_id}", status_code=status.HTTP_204_NO_CONTENT)

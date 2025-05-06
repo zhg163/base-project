@@ -97,3 +97,39 @@ def get_session_service(
         mongo_repository=role_repository
     )
 
+def get_llm_service():
+    """获取LLM服务实例"""
+    from app.services.ai.llm.llm_factory import LLMFactory
+    from app.core.config import settings
+    import os
+    
+    # 从环境变量获取，如果不存在则使用默认值
+    model_type = os.getenv("DEFAULT_MODEL_TYPE", "deepseek")
+    
+    factory = LLMFactory()
+    return factory.get_llm_service(model_type)
+
+def get_role_selector():
+    """获取角色选择器实例"""
+    from app.services.ai.llm.role_selector import RoleSelector
+    
+    # 暂时使用None作为LLM服务，实际运行时会通过依赖注入提供
+    # 角色选择器会在ChatService中重新赋值正确的LLM服务
+    return RoleSelector(llm_service=None)
+
+def get_chat_service(
+    session_service = Depends(get_session_service),
+    llm_service = Depends(get_llm_service),
+    role_selector = Depends(get_role_selector)
+):
+    """获取聊天服务实例"""
+    from app.services.chat_service import ChatService
+    
+    # 确保角色选择器使用正确的LLM服务
+    role_selector.llm_service = llm_service
+    
+    return ChatService(
+        llm_service=llm_service,
+        session_service=session_service,
+        role_selector=role_selector
+    )
