@@ -6,6 +6,7 @@ from langchain_core.exceptions import OutputParserException
 from dotenv import load_dotenv, find_dotenv
 import httpx
 import json
+import re
 
 # 设置日志记录
 logger = logging.getLogger(__name__)
@@ -196,3 +197,51 @@ class DeepseekService(BaseLLMService):
                 "total_tokens": len(message) + 50
             }
         }
+
+    def extract_emotion(self, text):
+        """从文本中提取情绪标签
+        示例: 『信任』"博士，这次行动交给你了。"【轻触地图】
+        """
+        emotion_pattern = r'『([\w]+)』'
+        match = re.search(emotion_pattern, text)
+        if match:
+            return match.group(1)
+        return None
+        
+    def extract_action(self, text):
+        """从文本中提取动作描述
+        示例: 『信任』"博士，这次行动交给你了。"【轻触地图】
+        """
+        action_pattern = r'【(.*?)】'
+        match = re.search(action_pattern, text)
+        if match:
+            return match.group(1)
+        return None
+    
+    async def generate_stream_with_emotion(self, message, system_prompt=None, **kwargs):
+        """带情绪检测的流式生成"""
+        content_buffer = ""
+        
+        # 处理消息格式
+        messages = []
+        if system_prompt:
+            messages.append({"role": "system", "content": system_prompt})
+        messages.append({"role": "user", "content": message})
+        
+        async for content_data in self.generate_stream(message, system_prompt, **kwargs):
+            # 获取内容
+            content = content_data.get("content", "")
+            if not content:  # 跳过空内容
+                continue
+            
+            content_buffer += content
+            
+            # 检查情绪和动作
+            emotion = self.extract_emotion(content_buffer)
+            action = self.extract_action(content_buffer)
+            
+            yield {
+                "content": content,
+                "emotion": emotion,
+                "action": action
+            }

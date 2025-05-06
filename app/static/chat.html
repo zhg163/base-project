@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -14,6 +15,7 @@
             padding: 20px;
             background-color: #f5f5f5;
         }
+
         .chat-container {
             height: 500px;
             overflow-y: auto;
@@ -23,32 +25,39 @@
             margin-bottom: 15px;
             border: 1px solid #ddd;
         }
+
         .message {
             margin-bottom: 10px;
-            margin-top: 0; /* 确保消息顶部没有边距 */
+            margin-top: 0;
+            /* 确保消息顶部没有边距 */
             padding: 10px;
             border-radius: 5px;
             max-width: 80%;
         }
+
         .user-message {
             background-color: #d1e7ff;
             margin-left: auto;
             text-align: right;
         }
+
         .assistant-message {
             background-color: #f0f0f0;
             margin-right: auto;
         }
+
         .message-container {
             display: flex;
             margin-bottom: 15px;
             max-width: 100%;
         }
+
         .user-container {
             flex-direction: row;
             align-items: flex-start;
             justify-content: flex-end;
         }
+
         .user-name-label {
             font-size: 12px;
             color: #555;
@@ -57,28 +66,34 @@
             font-weight: 500;
             white-space: nowrap;
         }
+
         #errorContainer {
             display: none;
             margin-top: 15px;
         }
-        .typing-indicator {
-            display: inline-block;
-            padding: 5px 10px;
-            background-color: #f0f0f0;
-            border-radius: 10px;
-            font-style: italic;
-            color: #666;
-            margin-bottom: 10px;
-        }
+
         .typing-indicator:after {
             content: "...";
             animation: dots 1.5s steps(5, end) infinite;
         }
+
         @keyframes dots {
-            0%, 20% { content: "."; }
-            40% { content: ".."; }
-            60%, 100% { content: "..."; }
+
+            0%,
+            20% {
+                content: ".";
+            }
+
+            40% {
+                content: "..";
+            }
+
+            60%,
+            100% {
+                content: "...";
+            }
         }
+
         #phase2Container {
             display: none;
             margin-top: 15px;
@@ -87,9 +102,11 @@
             border-radius: 5px;
             border: 1px solid #ddd;
         }
+
         #feedbackBtns {
             margin-top: 10px;
         }
+
         .role-info {
             margin-bottom: 10px;
             padding: 10px;
@@ -98,21 +115,13 @@
             font-size: 14px;
             border-left: 3px solid #0d6efd;
         }
+
         .info-panel {
             margin-bottom: 20px;
             padding: 15px;
             background-color: #f8f9fa;
             border-radius: 5px;
             border: 1px solid #ddd;
-        }
-        .improving-indicator {
-            display: none;
-            margin-top: 15px;
-            padding: 10px;
-            background-color: #fff3cd;
-            border-radius: 5px;
-            border: 1px solid #ffeeba;
-            color: #856404;
         }
 
         /* 思考容器样式 */
@@ -123,9 +132,9 @@
             overflow: hidden;
             transition: all 0.3s ease;
             border-left: 3px solid #1a73e8;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
         }
-        
+
         .thinking-header {
             padding: 12px 15px;
             background-color: #f0f2f5;
@@ -136,7 +145,7 @@
             user-select: none;
             color: #555;
         }
-        
+
         .thinking-title {
             font-weight: 500;
             color: #444;
@@ -144,18 +153,18 @@
             align-items: center;
             gap: 8px;
         }
-        
+
         .thinking-title i {
             color: #1a73e8;
         }
-        
+
         .thinking-reason {
             font-size: 13px;
             color: #666;
             margin-left: 10px;
             font-style: italic;
         }
-        
+
         .thinking-toggle {
             background: none;
             border: none;
@@ -171,11 +180,11 @@
             justify-content: center;
             transition: background-color 0.2s;
         }
-        
+
         .thinking-toggle:hover {
-            background-color: rgba(0,0,0,0.05);
+            background-color: rgba(0, 0, 0, 0.05);
         }
-        
+
         .thinking-content {
             padding: 15px;
             line-height: 1.6;
@@ -183,9 +192,10 @@
             background-color: #f9fafb;
             border-bottom: 1px solid #eee;
             overflow-x: auto;
-            display: block; /* Changed from max-height: 0 */
+            display: block;
+            /* Changed from max-height: 0 */
         }
-        
+
         .thinking-step {
             margin: 8px 0;
             padding: 8px 12px;
@@ -196,12 +206,15 @@
             font-size: 14px;
             white-space: pre-wrap;
             overflow-wrap: break-word;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-            position: relative; /* 用于定位详情按钮 */
-            display: flex; /* 使用flex布局 */
-            align-items: flex-start; /* 顶部对齐 */
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+            position: relative;
+            /* 用于定位详情按钮 */
+            display: flex;
+            /* 使用flex布局 */
+            align-items: flex-start;
+            /* 顶部对齐 */
         }
-        
+
         /* DeepSeek风格的思考过程标题 */
         .deepseek-thinking-header {
             padding: 12px 15px;
@@ -215,34 +228,35 @@
             font-weight: normal;
             border-bottom: 1px solid #eaeaea;
         }
-        
+
         .deepseek-thinking-title {
             font-weight: normal;
             color: #555;
             font-size: 14px;
         }
-        
+
         .thinking-references {
             padding: 10px 15px;
             background-color: #f5f8ff;
-            display: block; /* Changed from max-height: 0 */
+            display: block;
+            /* Changed from max-height: 0 */
         }
-        
+
         .reference-card {
             margin: 10px 0;
             border-radius: 8px;
             overflow: hidden;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
             background-color: white;
             transition: transform 0.2s;
             border: 1px solid #eaeef2;
         }
-        
+
         .reference-card:hover {
             transform: translateY(-2px);
-            box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
         }
-        
+
         .reference-header {
             padding: 12px 15px;
             background-color: #f0f4f8;
@@ -251,7 +265,7 @@
             align-items: center;
             border-bottom: 1px solid #eaeef2;
         }
-        
+
         .reference-title {
             font-weight: 600;
             color: #333;
@@ -260,7 +274,7 @@
             overflow: hidden;
             text-overflow: ellipsis;
         }
-        
+
         .reference-score {
             font-size: 12px;
             color: #777;
@@ -270,7 +284,7 @@
             border-radius: 10px;
             white-space: nowrap;
         }
-        
+
         .reference-toggle {
             background-color: #f5f7fa;
             border: 1px solid #ddd;
@@ -281,13 +295,13 @@
             color: #555;
             transition: all 0.2s;
         }
-        
+
         .reference-toggle:hover {
             background-color: #e6f7ff;
             border-color: #1a73e8;
             color: #1a73e8;
         }
-        
+
         .reference-content {
             max-height: 0;
             overflow: hidden;
@@ -295,13 +309,13 @@
             padding: 0 15px;
             background-color: white;
         }
-        
+
         .reference-content p {
             margin: 12px 0;
             line-height: 1.6;
             color: #333;
         }
-        
+
         .thinking-summary {
             padding: 12px 15px;
             background-color: #eef2f7;
@@ -310,7 +324,7 @@
             text-align: center;
             border-top: 1px solid #e0e6ed;
         }
-        
+
         .thinking-error {
             padding: 12px 15px;
             background-color: #fde8e8;
@@ -319,14 +333,14 @@
             border-radius: 6px;
             border-left: 3px solid #e53e3e;
         }
-        
+
         .thinking-response-divider {
             height: 2px;
-            background: linear-gradient(90deg, rgba(26,115,232,0) 0%, rgba(26,115,232,0.5) 50%, rgba(26,115,232,0) 100%);
+            background: linear-gradient(90deg, rgba(26, 115, 232, 0) 0%, rgba(26, 115, 232, 0.5) 50%, rgba(26, 115, 232, 0) 100%);
             margin: 20px 0;
             position: relative;
         }
-        
+
         .thinking-response-divider::after {
             content: attr(data-role-name) " 回答";
             position: absolute;
@@ -339,14 +353,15 @@
             font-size: 12px;
             font-weight: 500;
         }
-        
+
         /* 响应容器样式 */
         .response-container {
             display: flex;
-            margin: 15px 0 25px 0; /* 增加底部间距，给角色名腾出空间 */
-            position: relative; /* For positioning the "loading" indicator and role label */
+            flex-direction: column;
+            margin: 15px 0 25px 0;
+            position: relative;
         }
-        
+
         .response-avatar {
             width: 40px;
             height: 40px;
@@ -356,29 +371,34 @@
             align-items: center;
             justify-content: center;
             color: white;
-            font-weight: bold;
+            font-weight: normal;
             margin-right: 12px;
             flex-shrink: 0;
-            position: relative; /* 为角色标签定位 */
+            font-size: 12px;
+            text-align: center;
+            line-height: 1.2;
+            overflow: hidden;
+            word-break: break-all;
+            padding: 5px;
         }
-        
+
         .response-content {
             flex: 1;
             padding: 16px;
             background-color: white;
             border-radius: 12px;
-            box-shadow: 0 3px 10px rgba(0,0,0,0.1);
+            box-shadow: 0 3px 10px rgba(0, 0, 0, 0.1);
             line-height: 1.6;
             color: #333;
             transition: all 0.3s ease;
         }
-        
+
         .response-content.loading::after {
             content: '▌';
             display: inline-block;
             animation: blink 1s step-end infinite;
         }
-        
+
         .response-actions {
             display: flex;
             justify-content: flex-end;
@@ -387,7 +407,7 @@
             padding-top: 8px;
             border-top: 1px solid #eee;
         }
-        
+
         .action-btn {
             background-color: #f5f7fa;
             border: 1px solid #ddd;
@@ -401,33 +421,33 @@
             transition: all 0.2s;
             font-size: 16px;
         }
-        
+
         .action-btn:hover {
             background-color: #e6f7ff;
             border-color: #1a73e8;
             transform: translateY(-2px);
         }
-        
+
         .like-btn:hover {
             background-color: #e6fff7;
             border-color: #28a745;
         }
-        
+
         .dislike-btn:hover {
             background-color: #ffebee;
             border-color: #dc3545;
         }
-        
+
         .copy-btn:hover {
             background-color: #e6f7ff;
             border-color: #1a73e8;
         }
-        
+
         .regen-btn:hover {
             background-color: #fff3e0;
             border-color: #ff9800;
         }
-        
+
         /* Toast notification styles */
         .toast {
             visibility: hidden;
@@ -443,16 +463,16 @@
             transform: translateX(-50%);
             bottom: 30px;
             font-size: 14px;
-            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
             opacity: 0;
             transition: opacity 0.3s, visibility 0.3s;
         }
-        
+
         .toast.show {
             visibility: visible;
             opacity: 1;
         }
-        
+
         /* Modal styles for detailed content */
         .text-modal {
             display: none;
@@ -463,9 +483,9 @@
             width: 100%;
             height: 100%;
             overflow: auto;
-            background-color: rgba(0,0,0,0.4);
+            background-color: rgba(0, 0, 0, 0.4);
         }
-        
+
         .text-modal-content {
             background-color: #fefefe;
             margin: 10% auto;
@@ -474,9 +494,9 @@
             width: 80%;
             max-width: 800px;
             border-radius: 8px;
-            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
         }
-        
+
         .text-modal-header {
             display: flex;
             justify-content: space-between;
@@ -485,24 +505,24 @@
             border-bottom: 1px solid #eee;
             margin-bottom: 15px;
         }
-        
+
         .text-modal-title {
             font-weight: 600;
             font-size: 18px;
             color: #333;
         }
-        
+
         .text-modal-close {
             color: #aaa;
             font-size: 28px;
             font-weight: bold;
             cursor: pointer;
         }
-        
+
         .text-modal-close:hover {
             color: #333;
         }
-        
+
         .text-modal-body {
             max-height: 60vh;
             overflow-y: auto;
@@ -511,33 +531,33 @@
             line-height: 1.6;
             white-space: pre-wrap;
         }
-        
+
         .text-modal-footer {
             margin-top: 15px;
             padding-top: 10px;
             border-top: 1px solid #eee;
             text-align: right;
         }
-        
+
         /* 自定义滚动条样式 */
         .text-modal-body::-webkit-scrollbar {
             width: 8px;
         }
-        
+
         .text-modal-body::-webkit-scrollbar-track {
             background: #f1f1f1;
             border-radius: 4px;
         }
-        
+
         .text-modal-body::-webkit-scrollbar-thumb {
             background: #c1c1c1;
             border-radius: 4px;
         }
-        
+
         .text-modal-body::-webkit-scrollbar-thumb:hover {
             background: #a1a1a1;
         }
-        
+
         .reference-detail-btn {
             background: none;
             border: 1px solid #ddd;
@@ -553,13 +573,13 @@
             font-size: 12px;
             transition: all 0.2s;
         }
-        
+
         .reference-detail-btn:hover {
             background-color: #e6f7ff;
             border-color: #1a73e8;
             color: #1a73e8;
         }
-        
+
         .role-label {
             font-size: 12px;
             color: #555;
@@ -571,7 +591,7 @@
             left: 0;
             bottom: -18px;
         }
-        
+
         /* 匹配信息区域样式 */
         .match-info-area {
             margin: 15px 0;
@@ -580,7 +600,7 @@
             border-radius: 8px;
             border: 1px solid #b3e0ff;
         }
-        
+
         .match-info-title {
             font-weight: 600;
             color: #1a73e8;
@@ -589,63 +609,76 @@
             display: flex;
             align-items: center;
         }
-        
+
         .match-info-title::before {
-            content: '\f52a';  /* FontAwesome匹配图标 */
+            content: '\f52a';
+            /* FontAwesome匹配图标 */
             font-family: 'Font Awesome 6 Free';
             font-weight: 900;
             margin-right: 8px;
             color: #1a73e8;
         }
-        
+
         .match-info-item {
             margin: 6px 0;
             font-size: 13px;
             color: #333;
             line-height: 1.4;
         }
-        
+
         .match-role-name {
             font-weight: 600;
             color: #1a73e8;
         }
-        
+
         .match-score {
             font-weight: 600;
             color: #28a745;
         }
-        
+
         .match-reason {
             font-style: italic;
             color: #555;
         }
-        
+
         /* 打字机效果样式，修改之前的typing动画 */
         @keyframes typing {
-            from { width: 0 }
-            to { width: 100% }
+            from {
+                width: 0
+            }
+
+            to {
+                width: 100%
+            }
         }
-        
+
         @keyframes blink-caret {
-            from, to { border-color: transparent }
-            50% { border-color: #1a73e8 }
+
+            from,
+            to {
+                border-color: transparent
+            }
+
+            50% {
+                border-color: #1a73e8
+            }
         }
-        
+
         .thinking-step.typing {
             overflow: hidden;
             white-space: nowrap;
             position: relative;
         }
-        
+
         .thinking-step.typing .thinking-step-content {
             overflow: hidden;
             white-space: nowrap;
             border-right: 2px solid transparent;
-            animation: 
+            animation:
                 typing 3.5s steps(40, end),
                 blink-caret 0.75s step-end infinite;
         }
-        
+
         /* DeepSeek风格样式 */
         .deepseek-thinking-header {
             padding: 12px 15px;
@@ -659,13 +692,13 @@
             font-weight: normal;
             border-bottom: 1px solid #eaeaea;
         }
-        
+
         .deepseek-thinking-title {
             font-weight: normal;
             color: #555;
             font-size: 14px;
         }
-        
+
         .reference-preview {
             padding: 10px 15px;
             font-size: 13px;
@@ -679,7 +712,7 @@
             overflow-y: auto;
             border-bottom: 1px solid #eee;
         }
-        
+
         .reference-view-btn {
             margin: 0 10px 10px 10px;
             padding: 4px 10px;
@@ -690,13 +723,13 @@
             cursor: pointer;
             color: #555;
         }
-        
+
         .reference-view-btn:hover {
             background-color: #e6f7ff;
             border-color: #1a73e8;
             color: #1a73e8;
         }
-        
+
         .waiting-message {
             background-color: #f8f9fa;
             border-left: 4px solid #ffc107;
@@ -707,19 +740,134 @@
             color: #666;
             animation: pulse 2s infinite;
         }
-        
+
         @keyframes pulse {
-            0% { opacity: 0.7; }
-            50% { opacity: 1; }
-            100% { opacity: 0.7; }
+            0% {
+                opacity: 0.7;
+            }
+
+            50% {
+                opacity: 1;
+            }
+
+            100% {
+                opacity: 0.7;
+            }
         }
-        
+
         .waiting-message i {
             margin-right: 8px;
             color: #ffc107;
         }
+
+        /* 添加这些CSS样式确保avatar显示正确 */
+        /* 在<style>标签中添加以下样式 */
+        .ai-avatar {
+            width: 40px;
+            height: 40px;
+            min-width: 40px;
+            background-color: #f0f0f0; /* 改为浅灰色背景 */
+            color: #333; /* 改为深色文字 */
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 10px;
+            font-size: 14px;
+        }
+
+        /* 添加CSS样式 */
+        .emotion-tag {
+            display: inline-block;
+            margin-right: 8px;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: bold;
+            background-color: #f0f0f0;
+        }
+
+        .emotion-信任 { background-color: #e3f2fd; color: #1976d2; }
+        .emotion-悲伤 { background-color: #e8f5e9; color: #388e3c; }
+        .emotion-愤怒 { background-color: #ffebee; color: #d32f2f; }
+        .emotion-责任感 { background-color: #e8eaf6; color: #3f51b5; }
+
+        .action-box {
+            font-style: italic;
+            color: #666;
+            margin: 5px 0;
+            padding: 5px 10px;
+            background-color: #f9f9f9;
+            border-left: 3px solid #ccc;
+        }
+
+        /* 添加到CSS样式部分 */
+        .event-tags {
+            display: flex;
+            flex-wrap: nowrap;
+            margin-bottom: 10px;
+            gap: 5px;
+            padding-left: 15px;
+        }
+
+        .event-tag {
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+
+        .role-tag { 
+            background-color: #f8f9fa; 
+            color: #333; 
+        }
+        .emotion-tag { background-color: #e8f5e9; color: #388e3c; }
+        .thinking-tag { background-color: #fff3e0; color: #f57c00; }
+
+        /* 添加思考中样式，包括换行效果 */
+        .thinking-tag {
+            background-color: #fff3e0;
+            color: #f57c00;
+            display: inline-block; /* 改为inline-block使其不换行 */
+            margin-right: 10px;
+        }
+
+        /* 添加换行线样式 */
+        .thinking-divider {
+            display: none; /* 隐藏分隔线 */
+        }
+
+        /* 添加角色标题样式 */
+        .chat-header {
+            display: flex;
+            align-items: center;
+            background-color: transparent; /* 去掉灰色背景 */
+            padding: 8px 15px;
+            border-bottom: 1px solid #e9ecef;
+            margin-bottom: 10px;
+            border-radius: 5px 5px 0 0;
+        }
+
+        .chat-header-title {
+            font-size: 16px;
+            font-weight: 500;
+            color: #333;
+            margin-right: 10px;
+        }
+
+        /* 情绪标签样式 - 让它更适合在标题行中显示 */
+        .header-emotion-tag {
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: bold;
+            background-color: #e8f5e9;
+            color: #388e3c;
+            display: inline-block;
+        }
     </style>
 </head>
+
 <body>
     <!-- 文本弹窗 -->
     <div id="textModal" class="text-modal">
@@ -790,7 +938,8 @@
                 </div>
 
                 <div class="mt-4 text-center">
-                    <a href="http://localhost:8000/static/session_manager.html" class="btn btn-outline-secondary w-100">返回会话管理</a>
+                    <a href="/static/session_manager.html"
+                        class="btn btn-outline-secondary w-100">返回会话管理</a>
                 </div>
             </div>
         </div>
@@ -821,7 +970,7 @@
             let currentFeedbackMessageId = null; // 当前反馈消息ID
             let currentFeedbackState = 'pending'; // 当前反馈状态
             let currentRole = null; // 添加当前角色变量初始化
-            
+
             let currentThinkingContainer = null;
             let currentResponseContainer = null;
             let isThinking = false;
@@ -829,25 +978,15 @@
             let responseContent = '';
             let typewriterInterval = null;
             let typingSpeed = 15; // ms per character
-            
+
             let isProcessingMessage = false; // 标记是否正在处理消息
             let lastSentMessage = ""; // 记录最后发送的消息内容
             let lastSentTime = 0; // 记录最后发送消息的时间
             let currentThinkingMode = false;
             let responseContainer = null;
             let messageTimeout; // Add timeout variable for safety
-            
-            // SSE错误处理
-            function handleSSEError(error) {
-                console.error('SSE连接错误:', error);
-                showError('与服务器的连接已断开。请刷新页面重试。');
-                if (currentEventSource) {
-                    currentEventSource.close();
-                    currentEventSource = null;
-                }
-                typingIndicator.style.display = 'none';
-                sendBtn.disabled = false;
-            }
+
+
 
             // 解析URL参数函数
             function getUrlParams() {
@@ -865,10 +1004,10 @@
             // 修改processUrlParams函数，使其能正确处理和显示URL参数
             function processUrlParams() {
                 const params = getUrlParams();
-                
+
                 if (params.session_id) {
                     currentSessionId = params.session_id;
-                    
+
                     // 更新会话信息显示，包含更多用户信息
                     sessionInfo.innerHTML = `
                         <strong>会话ID:</strong> ${currentSessionId.substring(0, 8)}...<br>
@@ -876,24 +1015,24 @@
                         <strong>用户ID:</strong> ${params.userId || '未知ID'}<br>
                         <strong>来源:</strong> URL参数
                     `;
-                    
+
                     // 获取会话角色信息
                     fetchSessionRoles(currentSessionId);
-                    
+
                     // 禁用创建会话按钮
                     createSessionBtn.textContent = "已加载会话";
                     createSessionBtn.disabled = true;
-                    
+
                     // 显示参数（如果displayParams=true）
                     if (params.displayParams === 'true') {
                         console.log('URL参数:', params);
                     }
-                    
+
                     // 更新当前用户名
                     if (params.userName) {
                         currentUserName = params.userName;
                     }
-                    
+
                     return true;
                 }
 
@@ -905,16 +1044,16 @@
                 try {
                     // 显示加载状态
                     roleInfo.innerHTML = '<div class="text-center"><div class="spinner-border text-primary" role="status"></div><p>正在加载角色信息...</p></div>';
-                    
+
                     // 获取会话详情
                     const response = await fetch(`/api/custom-sessions/${sessionId}`);
                     if (!response.ok) {
                         throw new Error('获取会话详情失败');
                     }
-                    
+
                     const sessionData = await response.json();
                     console.log('会话详情:', sessionData);
-                    
+
                     // 检查是否有角色数据
                     if (sessionData.roles && sessionData.roles.length > 0) {
                         // 更新角色信息显示
@@ -923,8 +1062,8 @@
                                 <strong>${role.role_name || '未命名角色'}</strong><br>
                                 <small class="text-muted">角色ID: ${role.role_id}</small><br>
                                 ${role.system_prompt ?
-                                    `<div class="small mt-2 text-expandable" style="max-height: 150px; overflow-y: auto; background-color: #f8f9fa; padding: 8px; border-radius: 4px; font-family: monospace;" data-content="${encodeURIComponent(role.system_prompt)}" data-title="${encodeURIComponent(role.role_name || '未命名角色')} 的系统提示词" data-role-id="${role.role_id}" data-role-index="${index}">${role.system_prompt}</div>`
-                                    : '<small class="text-muted">无系统提示词</small>'}
+                                `<div class="small mt-2 text-expandable" style="max-height: 150px; overflow-y: auto; background-color: #f8f9fa; padding: 8px; border-radius: 4px; font-family: monospace;" data-content="${encodeURIComponent(role.system_prompt)}" data-title="${encodeURIComponent(role.role_name || '未命名角色')} 的系统提示词" data-role-id="${role.role_id}" data-role-index="${index}">${role.system_prompt}</div>`
+                                : '<small class="text-muted">无系统提示词</small>'}
                             </div>
                         `).join('');
                     } else {
@@ -960,8 +1099,8 @@
                                 <strong>${role.name || '未命名角色'}</strong><br>
                                 <small class="text-muted">角色ID: ${role._id}</small><br>
                                 ${role.system_prompt ?
-                                    `<div class="small mt-2 text-expandable" style="max-height: 150px; overflow-y: auto; background-color: #f8f9fa; padding: 8px; border-radius: 4px; font-family: monospace;" data-content="${encodeURIComponent(role.system_prompt)}" data-title="${encodeURIComponent(role.name || '未命名角色')} 的系统提示词">${role.system_prompt}</div>`
-                                    : '<small class="text-muted">无系统提示词</small>'}
+                                `<div class="small mt-2 text-expandable" style="max-height: 150px; overflow-y: auto; background-color: #f8f9fa; padding: 8px; border-radius: 4px; font-family: monospace;" data-content="${encodeURIComponent(role.system_prompt)}" data-title="${encodeURIComponent(role.name || '未命名角色')} 的系统提示词">${role.system_prompt}</div>`
+                                : '<small class="text-muted">无系统提示词</small>'}
                             </div>
                             `).join('')}
                         `;
@@ -975,10 +1114,10 @@
             // 更新当前角色显示
             function updateCurrentRoleDisplay() {
                 if (!currentRole) return;
-                
+
                 // 更新角色信息区域
                 const roleInfoElement = document.getElementById('roleInfo');
-                
+
                 if (roleInfoElement) {
                     roleInfoElement.innerHTML = `
                         <div class="role-info">
@@ -995,13 +1134,13 @@
                     // 禁用按钮
                     createSessionBtn.disabled = true;
                     createSessionBtn.textContent = '创建中...';
-                    
+
                     // 构造请求数据
                     const data = {
                         user_id: getUrlParams().userId || 'anonymous',
                         user_name: getUrlParams().userName || '用户'
                     };
-                    
+
                     // 发送POST请求创建会话
                     const response = await fetch('/api/sessions', {
                         method: 'POST',
@@ -1010,27 +1149,27 @@
                         },
                         body: JSON.stringify(data)
                     });
-                    
+
                     if (!response.ok) {
                         throw new Error(`HTTP error! status: ${response.status}`);
                     }
-                    
+
                     const result = await response.json();
-                    
+
                     // 更新会话信息
                     currentSessionId = result.session_id;
                     document.getElementById('sessionInfo').textContent = `会话ID: ${currentSessionId}`;
-                    
+
                     // 显示成功提示
                     showToast('会话创建成功');
-                    
+
                     // 加载会话角色
                     fetchSessionRoles(currentSessionId);
-                    
+
                 } catch (error) {
                     console.error('创建会话失败:', error);
                     handleError(`创建会话失败: ${error.message}`);
-                    
+
                     // 重置按钮状态
                     createSessionBtn.disabled = false;
                     createSessionBtn.textContent = '创建会话';
@@ -1040,70 +1179,29 @@
             // 显示用户消息
             function addUserMessage(message) {
                 if (!message) return;
-                
+
                 // 创建消息容器
                 const messageContainer = document.createElement('div');
                 messageContainer.className = 'message-container user-container';
-                
+
                 // 创建消息元素
                 const messageElement = document.createElement('div');
                 messageElement.className = 'message user-message';
                 messageElement.textContent = message;
-                
+
                 // 创建用户名标签
                 const userNameLabel = document.createElement('div');
                 userNameLabel.className = 'user-name-label';
                 userNameLabel.textContent = currentUserName || '用户';
-                
+
                 // 将消息和用户名添加到容器
                 messageContainer.appendChild(messageElement);
                 messageContainer.appendChild(userNameLabel);
-                
+
                 // 将容器添加到聊天区域
                 chatContainer.appendChild(messageContainer);
-                
+
                 // 滚动到最新消息
-                chatContainer.scrollTop = chatContainer.scrollHeight;
-            }
-
-            // 显示AI消息
-            function addAssistantMessage(content, roleRef = null) {
-                const messageContainer = document.createElement('div');
-                messageContainer.className = 'message-container';
-
-                // 如果有角色信息，添加角色标签
-                if (roleRef) {
-                    const roleLabel = document.createElement('small');
-                    roleLabel.style.marginRight = '10px';
-                    roleLabel.style.color = '#666';
-                    roleLabel.style.paddingTop = '0px'; // 移除顶部内边距，确保与消息文本顶部对齐
-                    roleLabel.style.alignSelf = 'flex-start'; // 确保顶部对齐
-                    roleLabel.textContent = `${roleRef}: `;
-                    messageContainer.appendChild(roleLabel);
-                }
-
-                const messageElement = document.createElement('div');
-                messageElement.className = 'message assistant-message';
-                messageElement.textContent = content;
-
-                messageContainer.appendChild(messageElement);
-                chatContainer.appendChild(messageContainer);
-                chatContainer.scrollTop = chatContainer.scrollHeight;
-
-                return messageElement;
-            }
-
-            // 显示系统消息
-            function addSystemMessage(content) {
-                const messageContainer = document.createElement('div');
-                messageContainer.className = 'text-center my-3';
-
-                const messageElement = document.createElement('span');
-                messageElement.className = 'badge bg-secondary';
-                messageElement.innerHTML = content; // 使用innerHTML而不是textContent以支持HTML
-
-                messageContainer.appendChild(messageElement);
-                chatContainer.appendChild(messageContainer);
                 chatContainer.scrollTop = chatContainer.scrollHeight;
             }
 
@@ -1119,66 +1217,66 @@
             // 修改sendMessage函数，确保连接在响应完成后彻底关闭
             async function sendMessage() {
                 const message = userInput.value.trim();
-                
+
                 // 消息验证
                 if (!message) {
                     console.log('消息为空，不发送');
                     return;
                 }
-                
+
                 // 防止重复发送：检查是否正在处理消息
                 if (isProcessingMessage) {
                     console.log('消息正在处理中，请稍候...');
                     return;
                 }
-                
+
                 // 防止频繁发送：检查与上一条消息的时间间隔(至少1秒)
                 const now = Date.now();
                 if (now - lastSentTime < 1000) {
                     console.log('发送过于频繁，请稍候再试...');
                     return;
                 }
-                
+
                 // 防止重复内容：检查是否与上一条消息内容相同
                 if (message === lastSentMessage) {
                     console.log('请勿重复发送相同内容');
                     return;
                 }
-                
+
                 // 更新状态
                 isProcessingMessage = true;
                 lastSentMessage = message;
                 lastSentTime = now;
-                
+
                 // 重置对话状态 - 清除之前的思考和响应容器ID
                 const oldThinking = document.getElementById('thinkingContainer');
                 if (oldThinking) {
                     oldThinking.id = 'completed-thinking-' + Date.now();
                 }
-                
+
                 const oldResponse = document.getElementById('responseContainer');
                 if (oldResponse) {
                     oldResponse.id = 'completed-response-' + Date.now();
                 }
-                
+
                 // 禁用发送按钮并显示加载指示器
                 sendBtn.disabled = true;
                 typingIndicator.style.display = 'block';
-                
+
                 // 显示用户消息
                 addUserMessage(message);
-                
+
                 // 清空输入框
                 userInput.value = '';
-                
+
                 // 保存用户消息
                 lastUserMessage = message;
-                
+
                 // 设置安全计时器，确保界面状态最终会被重置
                 if (messageTimeout) {
                     clearTimeout(messageTimeout);
                 }
-                
+
                 // 添加提醒计时器 - 如果响应时间超过10秒，显示等待消息
                 const reminderTimeout = setTimeout(() => {
                     // 如果还在处理中，添加一个等待提示
@@ -1191,38 +1289,38 @@
                         chatContainer.scrollTop = chatContainer.scrollHeight;
                     }
                 }, 10000); // 10秒后显示等待消息
-                
+
                 // 设置主安全计时器
                 messageTimeout = setTimeout(() => {
                     console.log('安全计时器触发：强制重置界面状态');
                     isProcessingMessage = false;
                     sendBtn.disabled = false;
                     typingIndicator.style.display = 'none';
-                    
+
                     // 关闭当前EventSource连接
                     if (currentEventSource) {
                         closeEventSource();
                     }
-                    
+
                     // 移除等待消息
                     const waitingMessage = document.getElementById('waiting-message');
                     if (waitingMessage) {
                         waitingMessage.remove();
                     }
-                    
+
                     // 显示超时错误提示
                     handleError("消息响应超时，请稍后重试。如果问题持续存在，请刷新页面。");
-                    
+
                 }, 30000); // 30秒超时
-                
+
                 try {
                     // 构建请求URL - 修改这部分
                     const endpointURL = apiEndpoint.value;
-                    
+
                     // 获取用户ID参数
                     const urlParams = getUrlParams();
                     const userId = urlParams.userId || 'anonymous';
-                    
+
                     // 使用POST请求处理非流式API
                     if (endpointURL === "/api/llm/chat") {
                         // 准备POST请求体
@@ -1232,7 +1330,7 @@
                             user_id: userId,
                             show_thinking: document.getElementById('showThinking').checked
                         };
-                        
+
                         // 发送POST请求
                         fetch(`${window.location.origin}${endpointURL}`, {
                             method: 'POST',
@@ -1241,103 +1339,103 @@
                             },
                             body: JSON.stringify(payload)
                         })
-                        .then(response => response.text())
-                        .then(text => {
-                            console.log("Raw response:", text); // Debug: log the raw response
-                            
-                            let data;
-                            if (text.trim().startsWith('data:')) {
-                                // Handle multi-line SSE responses
-                                if (text.includes('\n\n')) {
-                                    // Multiple SSE messages - take the last complete one
-                                    const messages = text.split('\n\n').filter(m => m.trim());
-                                    if (messages.length > 0) {
-                                        const lastMessage = messages[messages.length - 1];
-                                        const jsonStr = lastMessage.replace(/^data: /, '');
+                            .then(response => response.text())
+                            .then(text => {
+                                console.log("Raw response:", text); // Debug: log the raw response
+
+                                let data;
+                                if (text.trim().startsWith('data:')) {
+                                    // Handle multi-line SSE responses
+                                    if (text.includes('\n\n')) {
+                                        // Multiple SSE messages - take the last complete one
+                                        const messages = text.split('\n\n').filter(m => m.trim());
+                                        if (messages.length > 0) {
+                                            const lastMessage = messages[messages.length - 1];
+                                            const jsonStr = lastMessage.replace(/^data: /, '');
+                                            data = JSON.parse(jsonStr);
+                                        }
+                                    } else {
+                                        // Single SSE message
+                                        const jsonStr = text.replace(/^data: /, '');
                                         data = JSON.parse(jsonStr);
                                     }
                                 } else {
-                                    // Single SSE message
-                                    const jsonStr = text.replace(/^data: /, '');
-                                    data = JSON.parse(jsonStr);
+                                    // Regular JSON
+                                    data = JSON.parse(text);
                                 }
-                            } else {
-                                // Regular JSON
-                                data = JSON.parse(text);
-                            }
-                            
-                            // Process the data
-                            if (data) {
-                                processEvent(data);
-                            }
-                            
-                            // Mark as complete
-                            isProcessingMessage = false;
-                            sendBtn.disabled = false;
-                            typingIndicator.style.display = 'none';
-                            
-                            // Clear safety timer
-                            if (messageTimeout) {
-                                clearTimeout(messageTimeout);
-                            }
-                        })
-                        .catch(error => {
-                            console.error('fetch错误:', error);
-                            console.log("Error details:", error.message);
-                            handleError('请求错误: ' + error.message);
-                            // Restore UI state
-                            isProcessingMessage = false;
-                            sendBtn.disabled = false;
-                            typingIndicator.style.display = 'none';
-                        });
-                        
+
+                                // Process the data
+                                if (data) {
+                                    processEvent(data);
+                                }
+
+                                // Mark as complete
+                                isProcessingMessage = false;
+                                sendBtn.disabled = false;
+                                typingIndicator.style.display = 'none';
+
+                                // Clear safety timer
+                                if (messageTimeout) {
+                                    clearTimeout(messageTimeout);
+                                }
+                            })
+                            .catch(error => {
+                                console.error('fetch错误:', error);
+                                console.log("Error details:", error.message);
+                                handleError('请求错误: ' + error.message);
+                                // Restore UI state
+                                isProcessingMessage = false;
+                                sendBtn.disabled = false;
+                                typingIndicator.style.display = 'none';
+                            });
+
                         return; // 结束函数执行，不再创建EventSource
                     }
-                    
+
                     // 对于流式API，继续使用EventSource
                     const paramString = `session_id=${encodeURIComponent(currentSessionId)}&message=${encodeURIComponent(message)}&user_id=${encodeURIComponent(userId)}`;
                     const showThinkingParam = document.getElementById('showThinking').checked ? '&show_thinking=true' : '&show_thinking=false';
                     const timeParam = `&_t=${Date.now()}`;
                     const fullUrl = `${window.location.origin}${endpointURL}?${paramString}${showThinkingParam}${timeParam}`;
-                    
+
                     console.log('Opening SSE connection to:', fullUrl);
-                    
+
                     // 关闭之前的事件源并设置为null
                     if (currentEventSource) {
                         console.log('关闭之前的EventSource连接');
                         currentEventSource.close();
                         currentEventSource = null;
                     }
-                    
+
                     // 创建EventSource连接
                     const eventSource = new EventSource(fullUrl);
                     currentEventSource = eventSource;
-                    
+
                     // 添加连接打开事件处理
-                    eventSource.onopen = function() {
+                    eventSource.onopen = function () {
                         console.log('EventSource连接已打开');
                     };
-                    
+
                     // 设置onmessage处理程序
-                    eventSource.onmessage = function(event) {
+                    eventSource.onmessage = function (event) {
                         try {
                             const data = JSON.parse(event.data);
                             processEvent(data);
                         } catch (e) {
                             console.error('处理消息时出错:', e, event.data);
                             handleError('处理响应时出错: ' + e.message);
-                            
+
                             // 确保连接关闭
                             closeEventSource();
                             isProcessingMessage = false;
                         }
                     };
-                    
+
                     // 设置onerror处理程序，确保连接出错时彻底关闭
-                    eventSource.onerror = function(event) {
+                    eventSource.onerror = function (event) {
                         console.error('EventSource连接错误:', event);
                         handleError('连接错误，请刷新页面重试');
-                        
+
                         // 确保连接关闭
                         closeEventSource();
                         isProcessingMessage = false;
@@ -1345,12 +1443,12 @@
                 } catch (error) {
                     console.error('发送消息时出错:', error);
                     handleError('发送消息时出错: ' + error.message);
-                    
+
                     // 恢复状态
                     typingIndicator.style.display = 'none';
                     sendBtn.disabled = false;
                     isProcessingMessage = false;
-                    
+
                     // 清除安全计时器
                     if (messageTimeout) {
                         clearTimeout(messageTimeout);
@@ -1362,25 +1460,25 @@
             function closeEventSource() {
                 if (currentEventSource) {
                     console.log('关闭EventSource连接');
-                    
+
                     // 移除所有事件监听器
                     currentEventSource.onmessage = null;
                     currentEventSource.onerror = null;
                     currentEventSource.onopen = null;
-                    
+
                     // 关闭连接
                     currentEventSource.close();
                     currentEventSource = null;
-                    
+
                     // 恢复UI状态
                     typingIndicator.style.display = 'none';
                     sendBtn.disabled = false;
-                    
+
                     // 清除安全计时器
                     if (messageTimeout) {
                         clearTimeout(messageTimeout);
                     }
-                    
+
                     // 移除等待消息
                     const waitingMessage = document.getElementById('waiting-message');
                     if (waitingMessage) {
@@ -1389,287 +1487,8 @@
                 }
             }
 
-            function processEvent(data) {
-                console.log('Processing event:', data);
-                
-                // Check if data has just a content property (simple format)
-                if (data.content && !data.type && !data.event) {
-                    // Treat it as a content message
-                    processResponseContent({content: data.content});
-                    return;
-                }
-                
-                // Rest of your existing processEvent code...
-                if (data.type) {
-                    switch (data.type) {
-                        case 'thinking':
-                            // 处理thinking类型消息，启用思考模式
-                            if (data.data && data.data.type === 'thinking_mode') {
-                                processThinkingStart({
-                                    reason: data.data.reason || '正在思考...'
-                                });
-                            } else if (data.content) {
-                                // 处理思考内容
-                                appendThinkingStep(data.content);
-                            } else if (data.data && data.data.thinking) {
-                                // 处理嵌套在data中的thinking字段
-                                appendThinkingStep(data.data.thinking);
-                            }
-                            break;
-                        case 'chunk':
-                            // 处理知识库查询返回的chunk
-                            processThinkingReference({
-                                content: data.content || data.text || data.chunk || '无内容',
-                                source: data.source || data.title || '',
-                                score: data.score || data.relevance || '0'
-                            });
-                            break;
-                        case 'match_info':
-                            handleMatchInfo(data);
-                            break;
-                        case 'thinking_start':
-                            processThinkingStart(data);
-                            break;
-                        case 'thinking_content':
-                            processThinkingContent(data);
-                            break;
-                        case 'thinking_reference':
-                            processThinkingReference(data);
-                            break;
-                        case 'thinking_end':
-                            processThinkingEnd(data);
-                            break;
-                        case 'thinking_error':
-                            processThinkingError(data);
-                            break;
-                        case 'content':
-                            processResponseContent(data);
-                            break;
-                        case 'complete':
-                            finalizeResponse(data);
-                            break;
-                        case 'error':
-                            handleError(data.message || '未知错误');
-                            break;
-                        default:
-                            console.warn('Unknown event type:', data.type);
-                    }
-                } else if (data.event) {
-                    // 向后兼容：旧格式事件可能使用event字段而不是type字段
-                    switch (data.event) {
-                        case 'thinking_start':
-                            processThinkingStart(data);
-                            break;
-                        case 'thinking_content':
-                            processThinkingContent(data);
-                            break;
-                        case 'thinking_reference':
-                            processThinkingReference(data);
-                            break;
-                        case 'thinking_end':
-                            processThinkingEnd(data);
-                            break;
-                        case 'thinking_error':
-                            processThinkingError(data);
-                            break;
-                        case 'content':
-                            processResponseContent(data);
-                            break;
-                        case 'done':
-                            finalizeResponse(data);
-                            break;
-                        case 'match_info':
-                            handleMatchInfo(data);
-                            break;
-                        case 'error':
-                            handleError(data.message || '未知错误');
-                            break;
-                        default:
-                            console.warn('Unknown event format:', data);
-                    }
-                } else {
-                    console.warn('Unrecognized event format:', data);
-                }
-            }
 
-            function processThinkingStart(data) {
-                console.log('Thinking start:', data);
-                
-                // 创建思考容器
-                if (!document.getElementById('thinkingContainer')) {
-                    // 使用角色名称构建思考原因
-                    const reason = currentRole && currentRole.name 
-                        ? `${currentRole.name}思考中...` 
-                        : (data.reason || '思考中...');
-                        
-                    const container = createThinkingContainer(reason);
-                    chatContainer.appendChild(container);
-                }
-                
-                // 滚动到最新内容
-                chatContainer.scrollTop = chatContainer.scrollHeight;
-            }
 
-            function processThinkingContent(data) {
-                console.log('Thinking content:', data);
-                
-                // 添加思考步骤，带有打字机效果
-                appendThinkingStep(data.content);
-            }
-
-            function processThinkingReference(data) {
-                console.log('Thinking reference:', data);
-                
-                const thinkingContainer = document.getElementById('thinkingContainer');
-                if (!thinkingContainer) {
-                    // 如果没有思考容器，创建一个
-                    const container = createThinkingContainer('知识库检索结果');
-                    chatContainer.appendChild(container);
-                }
-                
-                // 确保content属性存在且有效
-                let content = '';
-                let source = '';
-                
-                // 检查data.content数据结构，提取有效内容
-                if (data.content) {
-                    if (typeof data.content === 'string') {
-                        // 如果content直接是字符串
-                        content = data.content;
-                    } else if (typeof data.content === 'object') {
-                        // 如果content是对象，提取content字段
-                        content = data.content.content || '';
-                        source = data.content.source || '';
-                    }
-                } else if (data.source && data.text) {
-                    // 兼容另一种数据结构
-                    content = data.text;
-                    source = data.source;
-                }
-                
-                // 如果没有source但有content，使用content的一部分作为source
-                if (!source && content) {
-                    source = content.substring(0, 30) + (content.length > 30 ? '...' : '');
-                }
-                
-                // 默认标题
-                if (!source) {
-                    source = '检索内容片段';
-                }
-                
-                // 确保内容中的<em>标签被处理
-                if (source) {
-                    source = source.replace(/<em>(.*?)<\/em>/g, '"$1"');
-                }
-                
-                if (content) {
-                    content = content.replace(/<em>(.*?)<\/em>/g, '"$1"');
-                }
-                
-                // 将处理好的数据传递给appendReferenceCard
-                appendReferenceCard(
-                    source,
-                    content,
-                    (data.content && data.content.score) || data.score || '0'
-                );
-                
-                // 记录调试信息
-                console.log('Processed reference:', {
-                    source: source,
-                    contentPreview: content ? (content.substring(0, 50) + '...') : 'No content',
-                    score: (data.content && data.content.score) || data.score || '0'
-                });
-            }
-
-            function processThinkingEnd(data) {
-                console.log('Thinking end:', data);
-                
-                const thinkingContainer = document.getElementById('thinkingContainer');
-                if (!thinkingContainer) {
-                    return; // 如果没有思考容器，直接返回
-                }
-                
-                // 完成思考容器
-                finalizeThinkingContainer(data.docs_count || 0, data.time_taken || 0);
-            }
-
-            function processThinkingError(data) {
-                console.log('Thinking error:', data);
-                
-                // 获取或创建思考容器
-                let thinkingContainer = document.getElementById('thinkingContainer');
-                if (!thinkingContainer) {
-                    thinkingContainer = createThinkingContainer('检索过程出错');
-                    chatContainer.appendChild(thinkingContainer);
-                }
-                
-                // 添加错误信息
-                appendThinkingError(data.error || data.message || '发生未知错误');
-            }
-
-            function processResponseContent(data) {
-                console.log('Response content:', data);
-                
-                // 获取或创建响应容器
-                let responseContainer = document.getElementById('responseContainer');
-                if (!responseContainer) {
-                    // 如果有思考容器，确保有分隔线
-                    if (document.getElementById('thinkingContainer')) {
-                        // 检查是否已存在分隔线
-                        if (!document.querySelector('.thinking-response-divider')) {
-                            const divider = document.createElement('div');
-                            divider.className = 'thinking-response-divider';
-                            divider.setAttribute('data-role-name', currentRole ? currentRole.name : '助手');
-                            chatContainer.appendChild(divider);
-                        }
-                    }
-                    
-                    // 创建响应容器
-                    responseContainer = createResponseContainer();
-                    chatContainer.appendChild(responseContainer);
-                }
-                
-                // 添加内容，无需打字机效果
-                appendResponseContent(data.content || '');
-            }
-
-            function finalizeResponse(data) {
-                console.log('Response complete:', data);
-                
-                // 获取响应容器
-                const responseContainer = document.getElementById('responseContainer');
-                if (responseContainer) {
-                    // 完成响应容器
-                    finalizeResponseContainer();
-                    
-                    // 移除容器ID，以便下次对话创建新的容器
-                    responseContainer.id = 'completed-response-' + Date.now();
-                }
-                
-                // 获取思考容器
-                const thinkingContainer = document.getElementById('thinkingContainer');
-                if (thinkingContainer) {
-                    // 移除容器ID
-                    thinkingContainer.id = 'completed-thinking-' + Date.now();
-                }
-                
-                // 清除状态标记
-                isProcessingMessage = false;
-                
-                // 清除安全计时器
-                if (messageTimeout) {
-                    clearTimeout(messageTimeout);
-                }
-                
-                // 移除等待消息
-                const waitingMessage = document.getElementById('waiting-message');
-                if (waitingMessage) {
-                    waitingMessage.remove();
-                }
-                
-                // 调用handleComplete
-                handleComplete();
-            }
 
             // Function to show a toast notification
             function showToast(message, duration = 3000) {
@@ -1681,11 +1500,11 @@
                     toast.className = 'toast';
                     document.body.appendChild(toast);
                 }
-                
+
                 // Set message and show toast
                 toast.textContent = message;
                 toast.classList.add('show');
-                
+
                 // Hide toast after duration
                 setTimeout(() => {
                     toast.classList.remove('show');
@@ -1719,10 +1538,10 @@
             // 显示详细内容弹窗
             function showDetailModal(title, content, isCode = false, roleId = null, roleIndex = null) {
                 textModalTitle.textContent = title || '详细内容';
-                
+
                 // 清空之前的内容
                 textModalBody.innerHTML = '';
-                
+
                 // 创建文本区域
                 const textarea = document.createElement('textarea');
                 textarea.className = 'form-control';
@@ -1730,17 +1549,17 @@
                 textarea.style.minHeight = '300px';
                 textarea.value = content || '';
                 textModalBody.appendChild(textarea);
-                
+
                 // 存储角色ID和索引
                 textModal.dataset.roleId = roleId || '';
                 textModal.dataset.roleIndex = roleIndex || '';
-                
+
                 // 显示或隐藏更新按钮
                 const updateBtn = document.getElementById('textModalUpdateBtn');
                 if (updateBtn) {
                     updateBtn.style.display = roleId ? 'inline-block' : 'none';
                 }
-                
+
                 // 显示弹窗
                 textModal.style.display = 'block';
                 document.body.style.overflow = 'hidden'; // 防止背景滚动
@@ -1763,29 +1582,29 @@
                 const roleId = textModal.dataset.roleId;
                 const roleIndex = parseInt(textModal.dataset.roleIndex || '-1');
                 const newPrompt = textModalBody.querySelector('textarea').value.trim();
-                
+
                 if (!roleId || roleIndex < 0 || !currentSessionId) {
                     showToast('无法更新: 缺少必要信息');
                     return;
                 }
-                
+
                 try {
                     // 显示加载状态
                     const updateBtn = document.getElementById('textModalUpdateBtn');
                     const originalText = updateBtn.textContent;
                     updateBtn.textContent = '更新中...';
                     updateBtn.disabled = true;
-                    
+
                     // 获取当前会话信息
                     const response = await fetch(`/api/custom-sessions/${currentSessionId}`);
                     if (!response.ok) throw new Error('获取会话信息失败');
                     const sessionData = await response.json();
-                    
+
                     // 更新指定角色的系统提示词
                     if (!sessionData.roles || !sessionData.roles[roleIndex]) {
                         throw new Error('找不到指定角色');
                     }
-                    
+
                     // 创建更新请求数据
                     const updateData = {
                         roles: sessionData.roles.map((role, idx) => {
@@ -1798,7 +1617,7 @@
                             return role;
                         })
                     };
-                    
+
                     // 发送更新请求
                     const updateResponse = await fetch(`/api/custom-sessions/${currentSessionId}`, {
                         method: 'PUT',
@@ -1807,15 +1626,15 @@
                         },
                         body: JSON.stringify(updateData)
                     });
-                    
+
                     if (!updateResponse.ok) throw new Error('更新失败');
-                    
+
                     // 显示成功消息
                     showToast('系统提示词更新成功');
-                    
+
                     // 刷新角色信息显示
                     fetchSessionRoles(currentSessionId);
-                    
+
                     // 关闭弹窗
                     closeTextModal();
                 } catch (error) {
@@ -1839,134 +1658,16 @@
                 }
             });
 
-            createSessionBtn.addEventListener('click', createSession);
-            clearChatBtn.addEventListener('click', () => {
-                // 清空聊天容器
-                chatContainer.innerHTML = '';
-                // 显示提示
-                showToast('聊天记录已清空');
-            });
-
-            // 通用事件处理函数
-            function handleEvent(event) {
-                try {
-                    const data = JSON.parse(event.data);
-                    if (!data || !data.type) {
-                        console.warn('Received event without type:', data);
-                        return;
-                    }
-
-                    console.log('Handling event type:', data.type, data);
-
-                    switch (data.type) {
-                        case 'thinking_mode':
-                            isThinkingMode = data.value === true;
-                            break;
-                        case 'match_info':
-                            handleMatchInfo(data);
-                            break;
-                        case 'content':
-                            handleContentChunk(data.content);
-                            break;
-                        case 'complete':
-                            handleComplete();
-                            break;
-                        case 'error':
-                            handleError(data.message || '未知错误');
-                            break;
-                        default:
-                            console.warn('Unknown event type:', data.type);
-                    }
-                } catch (e) {
-                    console.error('Error handling event:', e, event);
-                }
-            }
-
-            // 修改handleMatchInfo函数，防止重复添加角色匹配信息
-            function handleMatchInfo(data) {
-                console.log('匹配信息:', data);
-                
-                if (!data.role && !data.selected_role) {
-                    console.warn('无角色信息:', data);
-                    return;
-                }
-                
-                // 更新当前角色信息
-                const roleData = data.role || {};
-                const roleName = data.selected_role || roleData.name || roleData.role_name || '未知角色';
-                
-                currentRole = {
-                    id: roleData.id || roleData.role_id || data.role_id || '未知',
-                    name: roleName,
-                    avatar: roleData.avatar || null
-                };
-                
-                // 创建或获取思考容器
-                let thinkingContainer = document.getElementById('thinkingContainer');
-                if (!thinkingContainer) {
-                    thinkingContainer = createThinkingContainer(`${roleName} 思考中...`);
-                    chatContainer.appendChild(thinkingContainer);
-                }
-                
-                // 检查思考容器中是否已存在匹配信息区域
-                const existingMatchInfo = thinkingContainer.querySelector('.match-info-area');
-                if (existingMatchInfo) {
-                    // 如果已存在匹配信息区域，则更新其内容而不是创建新的
-                    existingMatchInfo.remove();
-                }
-                
-                // 创建匹配信息区域
-                const matchInfoArea = document.createElement('div');
-                matchInfoArea.className = 'match-info-area';
-                
-                // 添加标题
-                const matchInfoTitle = document.createElement('div');
-                matchInfoTitle.className = 'match-info-title';
-                matchInfoTitle.textContent = '角色匹配信息';
-                matchInfoArea.appendChild(matchInfoTitle);
-                
-                // 添加角色名
-                const roleItem = document.createElement('div');
-                roleItem.className = 'match-info-item';
-                roleItem.innerHTML = `已匹配到角色: <span class="match-role-name">${roleName}</span>`;
-                matchInfoArea.appendChild(roleItem);
-                
-                // 添加匹配分数（如果有）
-                if (data.match_score) {
-                    const matchScore = parseFloat(data.match_score).toFixed(2);
-                    const scoreItem = document.createElement('div');
-                    scoreItem.className = 'match-info-item';
-                    scoreItem.innerHTML = `匹配度: <span class="match-score">${matchScore}</span>`;
-                    matchInfoArea.appendChild(scoreItem);
-                }
-                
-                // 添加匹配原因（如果有）
-                if (data.match_reason && data.match_reason.length > 0) {
-                    const reasonItem = document.createElement('div');
-                    reasonItem.className = 'match-info-item';
-                    reasonItem.innerHTML = `匹配原因: <span class="match-reason">${data.match_reason}</span>`;
-                    matchInfoArea.appendChild(reasonItem);
-                }
-                
-                // 将匹配信息添加到思考容器的内容区域
-                const thinkingContent = thinkingContainer.querySelector('.thinking-content');
-                if (thinkingContent) {
-                    thinkingContent.appendChild(matchInfoArea);
-                }
-                
-                // 更新UI中的角色信息
-                updateCurrentRoleDisplay();
-            }
 
             // 更新当前角色的显示
             function updateCurrentRoleDisplay() {
                 if (!currentRole) return;
-                
+
                 // 如果界面中有显示当前角色的元素，则更新
                 const roleDisplay = document.getElementById('current-role-info');
                 if (roleDisplay) {
                     roleDisplay.innerHTML = `当前角色: ${currentRole.name} (ID: ${currentRole.id})`;
-                    
+
                     const avatarEl = document.getElementById('current-role-avatar');
                     if (avatarEl && currentRole.avatar) {
                         avatarEl.src = currentRole.avatar;
@@ -1975,85 +1676,43 @@
                 }
             }
 
-            function handleContentChunk(content) {
-                if (!content) return;
-                
-                // 如果还没有创建响应容器，先创建一个
-                if (!responseContainer) {
-                    responseContainer = createResponseContainer();
-                    chatContainer.appendChild(responseContainer);
-                }
-                
-                appendResponseContent(content);
-            }
-
-            function handleComplete() {
-                console.log('响应完成');
-                
-                // 关闭事件源
-                if (currentEventSource) {
-                    currentEventSource.close();
-                    currentEventSource = null;
-                }
-                
-                // 启用输入
-                typingIndicator.style.display = 'none';
-                sendBtn.disabled = false;
-                
-                // 标记消息处理完成
-                isProcessingMessage = false;
-                
-                // 清除安全计时器
-                if (messageTimeout) {
-                    clearTimeout(messageTimeout);
-                }
-                
-                // 移除等待消息
-                const waitingMessage = document.getElementById('waiting-message');
-                if (waitingMessage) {
-                    waitingMessage.remove();
-                }
-                
-                // 滚动到底部
-                chatContainer.scrollTop = chatContainer.scrollHeight;
-            }
 
             // 错误处理函数
             function handleError(errorMsg) {
                 console.error('Error:', errorMsg);
-                
+
                 // 显示错误容器
                 errorContainer.style.display = 'block';
                 errorMessage.textContent = errorMsg;
-                
+
                 // 3秒后自动隐藏错误信息
                 setTimeout(() => {
                     errorContainer.style.display = 'none';
                 }, 5000);
-                
+
                 // 恢复界面状态
                 if (typingIndicator) {
                     typingIndicator.style.display = 'none';
                 }
-                
+
                 if (sendBtn) {
                     sendBtn.disabled = false;
                 }
-                
+
                 // 关闭当前事件源
                 if (currentEventSource) {
                     currentEventSource.close();
                     currentEventSource = null;
                 }
-                
+
                 // 标记消息处理完成
                 isProcessingMessage = false;
-                
+
                 // 清除安全计时器
                 if (messageTimeout) {
                     clearTimeout(messageTimeout);
                 }
-                
+
                 // 移除等待消息
                 const waitingMessage = document.getElementById('waiting-message');
                 if (waitingMessage) {
@@ -2068,16 +1727,16 @@
                 if (container) {
                     return container;
                 }
-                
+
                 // 创建新的思考容器
                 container = document.createElement('div');
                 container.id = 'thinkingContainer';
                 container.className = 'thinking-container';
-                
+
                 // 创建标题区域
                 const header = document.createElement('div');
                 header.className = 'thinking-header';
-                
+
                 // 添加标题
                 const title = document.createElement('div');
                 title.className = 'thinking-title';
@@ -2088,7 +1747,7 @@
                     title.innerHTML = '<i class="fas fa-brain"></i> 思考过程';
                 }
                 header.appendChild(title);
-                
+
                 // 添加原因（如有）
                 if (reason) {
                     const reasonElem = document.createElement('div');
@@ -2096,30 +1755,30 @@
                     reasonElem.textContent = reason;
                     header.appendChild(reasonElem);
                 }
-                
+
                 // 添加切换按钮
                 const toggleBtn = document.createElement('button');
                 toggleBtn.className = 'thinking-toggle';
                 toggleBtn.innerHTML = '<i class="fas fa-chevron-up"></i>';
-                toggleBtn.onclick = function(e) {
+                toggleBtn.onclick = function (e) {
                     e.stopPropagation(); // 防止事件冒泡
                     toggleThinkingContent(container);
                 };
                 header.appendChild(toggleBtn);
-                
+
                 // 添加点击整个标题区域的事件
-                header.onclick = function() {
+                header.onclick = function () {
                     toggleThinkingContent(container);
                 };
-                
+
                 // 将标题区域添加到容器
                 container.appendChild(header);
-                
+
                 // 创建内容区域
                 const content = document.createElement('div');
                 content.className = 'thinking-content';
                 container.appendChild(content);
-                
+
                 return container;
             }
 
@@ -2127,66 +1786,66 @@
             function finalizeThinkingContainer(docsCount, timeTaken) {
                 const container = document.getElementById('thinkingContainer');
                 if (!container) return;
-                
+
                 // 检查是否已有总结区域
                 if (container.querySelector('.thinking-summary')) return;
-                
+
                 // 创建总结区域
                 const summary = document.createElement('div');
                 summary.className = 'thinking-summary';
-                
+
                 // 格式化时间（将毫秒转换为秒，保留两位小数）
                 const timeInSeconds = timeTaken / 1000;
                 const formattedTime = timeInSeconds.toFixed(0);
-                
+
                 // 更新标题为DeepSeek风格
                 const header = container.querySelector('.thinking-header');
                 if (header) {
                     // 清除旧类名并添加新类名，确保样式应用
                     header.classList.remove('thinking-header');
                     header.classList.add('deepseek-thinking-header');
-                    
+
                     // 清空现有标题内容
                     header.innerHTML = '';
-                    
+
                     // 添加新的DeepSeek风格标题
                     const title = document.createElement('div');
                     title.className = 'deepseek-thinking-title';
                     title.textContent = `Deep thinking completed (Time taken: ${formattedTime} seconds)`;
                     header.appendChild(title);
-                    
+
                     // 添加折叠按钮
                     const toggleBtn = document.createElement('button');
                     toggleBtn.className = 'thinking-toggle';
                     toggleBtn.innerHTML = '<i class="fas fa-chevron-up"></i>';
-                    toggleBtn.onclick = function(e) {
+                    toggleBtn.onclick = function (e) {
                         e.stopPropagation(); // 防止事件冒泡
                         toggleThinkingContent(container);
                     };
                     header.appendChild(toggleBtn);
-                    
+
                     // 添加点击整个标题区域的事件
-                    header.onclick = function() {
+                    header.onclick = function () {
                         toggleThinkingContent(container);
                     };
                 }
-                
+
                 // 创建分隔线，显示角色回答分隔
                 const divider = document.createElement('div');
                 divider.className = 'thinking-response-divider';
                 divider.setAttribute('data-role-name', currentRole ? currentRole.name : '助手');
                 chatContainer.appendChild(divider);
             }
-            
+
             // 新增函数：切换思考内容的显示/隐藏
             function toggleThinkingContent(container) {
                 const content = container.querySelector('.thinking-content');
                 const references = container.querySelector('.thinking-references');
                 const toggleBtn = container.querySelector('.thinking-toggle i');
-                
+
                 // 检查当前状态
                 const isExpanded = content.style.display !== 'none';
-                
+
                 if (isExpanded) {
                     // 收起内容
                     content.style.display = 'none';
@@ -2203,16 +1862,16 @@
             // 添加思考步骤的函数
             function appendThinkingStep(content) {
                 if (!content) return;
-                
+
                 const thinkingContainer = document.getElementById('thinkingContainer');
                 if (!thinkingContainer) return;
-                
+
                 const contentContainer = thinkingContainer.querySelector('.thinking-content');
                 if (!contentContainer) return;
-                
+
                 // 检查内容是否为对象格式
                 let textContent = content;
-                
+
                 // 如果content是对象，尝试解析thinking中的数据
                 if (typeof content === 'object') {
                     if (content.content) {
@@ -2229,20 +1888,20 @@
                         }
                     }
                 }
-                
+
                 // 创建思考步骤元素
                 const step = document.createElement('div');
                 step.className = 'thinking-step';
-                
+
                 // 添加内容
                 const stepContent = document.createElement('div');
                 stepContent.className = 'thinking-step-content';
                 stepContent.textContent = textContent;
                 step.appendChild(stepContent);
-                
+
                 // 添加到思考内容容器
                 contentContainer.appendChild(step);
-                
+
                 // 滚动到最新内容
                 chatContainer.scrollTop = chatContainer.scrollHeight;
             }
@@ -2250,18 +1909,18 @@
             // 添加思考错误的函数
             function appendThinkingError(error) {
                 if (!error) return;
-                
+
                 const thinkingContainer = document.getElementById('thinkingContainer');
                 if (!thinkingContainer) return;
-                
+
                 // 创建错误区域
                 const errorElem = document.createElement('div');
                 errorElem.className = 'thinking-error';
                 errorElem.innerHTML = `<i class="fas fa-exclamation-triangle"></i> ${error}`;
-                
+
                 // 添加到思考容器
                 thinkingContainer.appendChild(errorElem);
-                
+
                 // 滚动到最新内容
                 chatContainer.scrollTop = chatContainer.scrollHeight;
             }
@@ -2269,10 +1928,10 @@
             // 添加引用卡片的函数
             function appendReferenceCard(title, content, relevance) {
                 if (!title && !content) return;
-                
+
                 const thinkingContainer = document.getElementById('thinkingContainer');
                 if (!thinkingContainer) return;
-                
+
                 // 获取或创建引用区域
                 let referencesContainer = thinkingContainer.querySelector('.thinking-references');
                 if (!referencesContainer) {
@@ -2280,18 +1939,18 @@
                     referencesContainer.className = 'thinking-references';
                     thinkingContainer.appendChild(referencesContainer);
                 }
-                
+
                 // 创建引用卡片
                 const card = document.createElement('div');
                 card.className = 'reference-card';
-                
+
                 // 处理标题中的<em>标签
                 title = title.replace(/<em>(.*?)<\/em>/g, '"$1"');
-                
+
                 // 添加标题
                 const titleElem = document.createElement('div');
                 titleElem.className = 'reference-title';
-                
+
                 // 分析标题确定文档类型
                 let docType = '文档';
                 if (title.includes('.txt') || title.includes('.md')) {
@@ -2309,20 +1968,20 @@
                 } else if (title.toLowerCase().includes('http')) {
                     docType = '网页链接';
                 }
-                
+
                 // 生成新标题与类型信息
                 const displayTitle = title;
                 titleElem.innerHTML = `<i class="fas fa-file-alt"></i> <span style="color:#1a73e8;">[${docType}]</span> ${displayTitle}`;
                 card.appendChild(titleElem);
-                
+
                 // 处理内容中的<em>标签
                 content = content.replace(/<em>(.*?)<\/em>/g, '"$1"');
-                
+
                 // 添加内容预览 - 始终显示内容预览，确保不为空
                 if (content) {
                     const previewElem = document.createElement('div');
                     previewElem.className = 'reference-preview';
-                    
+
                     // 显示完整内容，不再截取
                     previewElem.textContent = content;
                     card.appendChild(previewElem);
@@ -2333,7 +1992,7 @@
                     noContentElem.innerHTML = '<i>没有获取到内容</i>';
                     card.appendChild(noContentElem);
                 }
-                
+
                 // 添加相关性评分（如果有）
                 if (relevance && relevance !== '0') {
                     const scoreContainer = document.createElement('div');
@@ -2341,86 +2000,100 @@
                     scoreContainer.innerHTML = `相关度: <b>${parseFloat(relevance).toFixed(2)}</b>`;
                     titleElem.appendChild(scoreContainer);
                 }
-                
+
                 // 添加查看全文按钮
                 if (content && content.length > 0) {
                     const viewButton = document.createElement('button');
                     viewButton.className = 'reference-view-btn';
                     viewButton.innerHTML = '<i class="fas fa-expand-alt"></i> 查看全文';
-                    viewButton.onclick = function() {
+                    viewButton.onclick = function () {
                         showDetailModal(title || '检索内容', content);
                     };
                     card.appendChild(viewButton);
                 }
-                
+
                 // 添加卡片到引用容器
                 referencesContainer.appendChild(card);
-                
+
                 // 滚动到最新内容
                 chatContainer.scrollTop = chatContainer.scrollHeight;
             }
 
-            // 将这些函数添加回来
-            // 修改appendResponseContent函数，确保正确追加内容而不是覆盖
+            /* 修改createResponseContainer函数 */
+            function createResponseContainer() {
+                const container = document.createElement('div');
+                container.id = 'responseContainer';
+                container.className = 'response-container';
+                
+                // 添加角色标题区域
+                const header = document.createElement('div');
+                header.className = 'chat-header';
+                
+                const headerTitle = document.createElement('div');
+                headerTitle.className = 'chat-header-title';
+                headerTitle.textContent = currentRole ? currentRole.name : 'AI';
+                
+                header.appendChild(headerTitle);
+                
+                // 创建情绪标签容器，但先不添加内容
+                const emotionTag = document.createElement('div');
+                emotionTag.className = 'header-emotion-tag';
+                emotionTag.style.display = 'none'; // 默认隐藏，有情绪时才显示
+                header.appendChild(emotionTag);
+                
+                container.appendChild(header);
+
+                // 创建事件标签容器，但不再包含情绪标签
+                const eventTags = document.createElement('div');
+                eventTags.className = 'event-tags';
+                container.appendChild(eventTags);
+
+                // 创建消息内容区域
+                const messageBox = document.createElement('div');
+                messageBox.className = 'message-box';
+                
+                const content = document.createElement('div');
+                content.className = 'response-content loading';
+                
+                messageBox.appendChild(content);
+                container.appendChild(messageBox);
+
+                return container;
+            }
+
+            // 修改appendResponseContent函数，修复HTML内容追加问题
             function appendResponseContent(text) {
                 if (!text) return;
-                
+
+                console.log('追加内容:', text); // 添加调试信息
+
                 const responseContainer = document.getElementById('responseContainer');
-                if (!responseContainer) return;
-                
+                if (!responseContainer) {
+                    console.error('找不到响应容器');
+                    return;
+                }
+
                 const content = responseContainer.querySelector('.response-content');
-                
-                // 处理<em>标签
-                text = text.replace(/<em>(.*?)<\/em>/g, '"$1"');
-                
-                // 获取当前内容
-                let currentHTML = content.innerHTML || '';
-                let fullContent = '';
-                
-                // 如果当前内容为空或只包含加载指示器的类，直接设置新内容
-                if (!currentHTML || currentHTML.trim() === '') {
-                    fullContent = text;
-                } else {
-                    // 解析现有内容，提取纯文本
-                    const tempDiv = document.createElement('div');
-                    tempDiv.innerHTML = currentHTML;
-                    const existingText = tempDiv.textContent || '';
-                    
-                    // 合并现有内容和新内容
-                    fullContent = existingText + text;
+                if (!content) {
+                    console.error('找不到内容区域');
+                    return;
                 }
-                
-                // 使用markdown-it渲染内容（如果可用）
-                if (window.markdownit) {
-                    const md = window.markdownit({
-                        html: true,
-                        linkify: true,
-                        typographer: true,
-                        highlight: function (str, lang) {
-                            if (lang && hljs.getLanguage(lang)) {
-                                try {
-                                    return '<pre class="hljs"><code>' +
-                                        hljs.highlight(str, { language: lang, ignoreIllegals: true }).value +
-                                        '</code></pre>';
-                                } catch (__) {}
-                            }
-                            return '<pre class="hljs"><code>' + md.utils.escapeHtml(str) + '</code></pre>';
-                        }
-                    });
-                    content.innerHTML = md.render(fullContent);
-                    
-                    // 高亮代码块
-                    content.querySelectorAll('pre code').forEach((block) => {
-                        hljs.highlightElement(block);
-                    });
-                } else {
-                    content.textContent = fullContent;
+
+                // 使用常规属性而非自定义属性
+                if (!content.dataset.fullText) {
+                    content.dataset.fullText = '';
+                    console.log('初始化文本为空');
                 }
-                
-                // 移除加载指示器
+
+                // 追加并记录
+                content.dataset.fullText += text;
+                console.log('当前累积文本:', content.dataset.fullText);
+
+                // 直接设置HTML内容而非textContent
+                content.innerHTML = content.dataset.fullText;
+
+                // 移除加载指示器并滚动
                 content.classList.remove('loading');
-                
-                // 滚动到最新内容
                 chatContainer.scrollTop = chatContainer.scrollHeight;
             }
 
@@ -2428,53 +2101,15 @@
             function finalizeResponseContainer() {
                 const responseContainer = document.getElementById('responseContainer');
                 if (!responseContainer) return;
-                
+
                 // 移除加载状态
                 const content = responseContainer.querySelector('.response-content');
                 if (content) {
                     content.classList.remove('loading');
                 }
-                
+
                 // 滚动到最新内容
                 chatContainer.scrollTop = chatContainer.scrollHeight;
-            }
-
-            // 创建响应容器
-            function createResponseContainer() {
-                const container = document.createElement('div');
-                container.id = 'responseContainer';
-                container.className = 'response-container';
-                
-                // 创建头像
-                const avatar = document.createElement('div');
-                avatar.className = 'response-avatar';
-                
-                // 使用角色信息设置头像
-                if (currentRole && currentRole.name) {  // Check that currentRole exists AND has a name
-                    if (currentRole.avatar) {
-                        // 使用角色头像图片
-                        const avatarImg = document.createElement('img');
-                        avatarImg.src = currentRole.avatar;
-                        avatarImg.alt = currentRole.name;
-                        avatar.appendChild(avatarImg);
-                    } else {
-                        // 使用首字母作为头像文本
-                        avatar.textContent = currentRole.name.charAt(0).toUpperCase();
-                    }
-                } else {
-                    // 默认头像
-                    avatar.textContent = 'A';
-                }
-                
-                // 创建内容区域
-                const content = document.createElement('div');
-                content.className = 'response-content loading';
-                
-                // 添加组件到容器
-                container.appendChild(avatar);
-                container.appendChild(content);
-                
-                return container;
             }
 
             // 添加页面初始化处理
@@ -2489,14 +2124,14 @@
             }
 
             // 添加对文本展开功能的处理
-            document.addEventListener('click', function(e) {
+            document.addEventListener('click', function (e) {
                 if (e.target.closest('.text-expandable')) {
                     const expandable = e.target.closest('.text-expandable');
                     const content = decodeURIComponent(expandable.getAttribute('data-content') || '');
                     const title = decodeURIComponent(expandable.getAttribute('data-title') || '详细内容');
                     const roleId = expandable.getAttribute('data-role-id');
                     const roleIndex = expandable.getAttribute('data-role-index');
-                    
+
                     if (content) {
                         showDetailModal(title, content, false, roleId, roleIndex);
                     }
@@ -2512,9 +2147,118 @@
             }
 
             // 在页面加载时添加等待样式
-            document.addEventListener('DOMContentLoaded', function() {
+            document.addEventListener('DOMContentLoaded', function () {
                 addWaitingStyles();
             });
+
+            // 使用全局变量存储当前累积内容
+            window.currentMessageContent = '';
+
+            function processEvent(data) {
+                console.log('Processing event:', data);
+
+                // 处理角色选择事件
+                if (data.event === "role_selected") {
+                    currentRole = {
+                        id: data.role_id || "unknown",
+                        name: data.role_name || "AI"
+                    };
+                    console.log('Role selected:', currentRole);
+
+                    // 清除旧容器
+                    const oldContainer = document.getElementById('responseContainer');
+                    if (oldContainer) {
+                        oldContainer.id = 'completed-response-' + Date.now();
+                    }
+
+                    // 创建新容器
+                    const responseContainer = createResponseContainer();
+                    chatContainer.appendChild(responseContainer);
+                    
+                    // 更新标题区域
+                    const headerTitle = responseContainer.querySelector('.chat-header-title');
+                    if (headerTitle) {
+                        headerTitle.textContent = data.role_name;
+                    }
+
+                    // 初始化全局消息累积变量
+                    window.currentMessageContent = '';
+                    return;
+                }
+
+                // 处理情绪事件 - 修改这部分
+                if (data.event === "emotion") {
+                    // 获取响应容器
+                    const responseContainer = document.getElementById('responseContainer');
+                    if (!responseContainer) return;
+                    
+                    // 找到标题中的情绪标签
+                    const header = responseContainer.querySelector('.chat-header');
+                    if (header) {
+                        const emotionTag = header.querySelector('.header-emotion-tag');
+                        if (emotionTag) {
+                            emotionTag.textContent = `${data.emotion}`;
+                            emotionTag.style.display = 'inline-block'; // 显示情绪标签
+                        }
+                    }
+                    return;
+                }
+                
+                // 处理思考事件
+                if (data.event === "thinking") {
+                    // 获取响应容器
+                    const responseContainer = document.getElementById('responseContainer');
+                    if (!responseContainer) return;
+                    
+                    // 添加思考标签到事件标签区域
+                    const eventTags = responseContainer.querySelector('.event-tags');
+                    if (eventTags) {
+                        let thinkingTag = eventTags.querySelector('.thinking-tag');
+                        if (!thinkingTag) {
+                            thinkingTag = document.createElement('div');
+                            thinkingTag.className = 'event-tag thinking-tag';
+                            eventTags.appendChild(thinkingTag);
+                            
+                            // 不再添加分隔线
+                        }
+                        thinkingTag.textContent = `思考中...`;
+                        
+                        // 仍然标记已添加思考标记
+                        responseContainer.dataset.hasThinking = 'true';
+                    }
+                    return;
+                }
+                
+                // 处理内容消息
+                if (data.content && data.role_name) {
+                    // 累积消息内容
+                    window.currentMessageContent = (window.currentMessageContent || '') + data.content;
+                    
+                    let responseContainer = document.getElementById('responseContainer');
+                    if (!responseContainer) {
+                        currentRole = { name: data.role_name, id: "unknown" };
+                        responseContainer = createResponseContainer();
+                        chatContainer.appendChild(responseContainer);
+                        window.currentMessageContent = data.content;
+                    }
+                    
+                    // 获取内容区域
+                    const content = responseContainer.querySelector('.response-content');
+                    if (content) {
+                        // 移动内容区域到换行后位置
+                        if (responseContainer.dataset.hasThinking === 'true' && !content.dataset.positionAdjusted) {
+                            content.style.marginTop = '10px';
+                            content.dataset.positionAdjusted = 'true';
+                        }
+                        
+                        const cleanText = window.currentMessageContent
+                            .replace(/『[\w]+』/g, '')
+                            .replace(/【.*?】/g, '');
+                        
+                        content.textContent = cleanText;
+                    }
+                }
+            }
         });
 
         // 添加一些CSS样式来美化等待消息
@@ -2545,6 +2289,178 @@
             `;
             document.head.appendChild(styleElement);
         }
+
+
+        // 全局变量，用于存储当前响应的累积内容
+        let currentResponseContent = '';
+
+        // 处理SSE事件
+        function handleEvent(event) {
+            try {
+                const data = JSON.parse(event.data);
+                console.log('处理事件:', data);
+                
+                // 处理角色选择事件
+                if (data.event === 'role_selected') {
+                    // 重置累积内容
+                    currentResponseContent = '';
+                    
+                    // 异步更新角色信息
+                    setTimeout(() => {
+                        // 更新当前角色信息
+                        currentRole = {
+                            id: data.role_id || 'unknown',
+                            name: data.role_name,
+                            system_prompt: data.system_prompt
+                        };
+                        console.log('角色已选择:', currentRole);
+                        
+                        // 创建新的响应容器
+                        const chatContainer = document.getElementById('chatContainer');
+                        const responseContainer = createResponseContainer();
+                        chatContainer.appendChild(responseContainer);
+                        
+                        // 更新角色头像和名称
+                        updateResponseAvatar();
+                    }, 0);
+                    
+                    // 主进程继续处理其他事件
+                    return;
+                }
+
+                // 处理消息内容
+                if (data.content) {
+                    // 累积内容而不是替换
+                    currentResponseContent += data.content;
+
+                    // 更新显示
+                    const responseContent = document.querySelector('.response-content');
+                    if (responseContent) {
+                        // 使用markdown渲染累积的内容
+                        const md = window.markdownit({
+                            html: true,
+                            linkify: true,
+                            typographer: true,
+                            highlight: function (str, lang) {
+                                if (lang && hljs.getLanguage(lang)) {
+                                    try {
+                                        return hljs.highlight(str, { language: lang }).value;
+                                    } catch (__) {}
+                                }
+                                return ''; // 使用默认的转义
+                            }
+                        });
+
+                        responseContent.innerHTML = md.render(currentResponseContent);
+
+                        // 如果有代码块，应用语法高亮
+                        responseContent.querySelectorAll('pre code').forEach((block) => {
+                            hljs.highlightElement(block);
+                        });
+                        
+                        // 移除loading状态
+                        responseContent.classList.remove('loading');
+                    }
+
+                    // 如果有角色信息，异步更新角色头像和名称
+                    if (data.role_name) {
+                        setTimeout(() => {
+                            if (!currentRole) {
+                                currentRole = {
+                                    id: data.role_id || 'unknown',
+                                    name: data.role_name
+                                };
+                            } else {
+                                currentRole.name = data.role_name;
+                                if (data.role_id) {
+                                    currentRole.id = data.role_id;
+                                }
+                            }
+                            
+                            updateResponseAvatar();
+                        }, 0);
+                    }
+                }
+
+                // 处理其他类型的事件...
+
+            } catch (e) {
+                console.error('处理事件时出错:', e, event);
+            }
+        }
+
+        // 创建响应容器
+        function createResponseContainer() {
+            // 重置累积内容
+            currentResponseContent = '';
+            
+            const container = document.createElement('div');
+            container.id = 'responseContainer';
+            container.className = 'response-container';
+
+            // 创建头像
+            const avatar = document.createElement('div');
+            avatar.className = 'response-avatar';
+
+            // 使用角色信息设置头像
+            if (currentRole && currentRole.name) {
+                // 使用角色名称的首字母作为头像文本
+                avatar.textContent = currentRole.name.charAt(0);
+
+                // 添加角色名称标签
+                const roleLabel = document.createElement('div');
+                roleLabel.className = 'role-label';
+                roleLabel.textContent = currentRole.name;
+                avatar.appendChild(roleLabel);
+            } else {
+                // 默认头像
+                avatar.textContent = 'A';
+
+                // 添加默认角色标签
+                const roleLabel = document.createElement('div');
+                roleLabel.className = 'role-label';
+                roleLabel.textContent = '助手';
+                avatar.appendChild(roleLabel);
+            }
+
+            // 创建内容区域
+            const content = document.createElement('div');
+            content.className = 'response-content loading';
+
+            // 添加组件到容器
+            container.appendChild(avatar);
+            container.appendChild(content);
+
+            return container;
+        }
+
+        // 更新响应角色名称和头像
+        function updateResponseAvatar() {
+            if (!currentRole || !currentRole.name) return;
+
+            // 查找当前响应容器
+            const responseContainer = document.getElementById('responseContainer');
+            if (responseContainer) {
+                // 更新头像文本为角色名首字母
+                const avatar = responseContainer.querySelector('.response-avatar');
+                if (avatar) {
+                    avatar.textContent = currentRole.name.charAt(0);
+
+                    // 查找或创建角色标签
+                    let roleLabel = avatar.querySelector('.role-label');
+                    if (!roleLabel) {
+                        roleLabel = document.createElement('div');
+                        roleLabel.className = 'role-label';
+                        avatar.appendChild(roleLabel);
+                    }
+
+                    // 更新角色名称
+                    roleLabel.textContent = currentRole.name;
+                }
+            }
+        }
+
     </script>
 </body>
+
 </html>

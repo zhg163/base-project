@@ -3,8 +3,12 @@ from app.services.storage.mongo_repository import MongoRepository
 from app.models.entities.mongo_models import Session
 from app.utils.logging import logger
 
-class SessionRepository(MongoRepository[Session]):
-    """会话存储库，提供会话的CRUD操作"""
+class SessionRepository(MongoRepository):
+    """会话仓库，处理Session实体的存取"""
+    
+    def __init__(self, model_class=Session, mongo_service=None):
+        super().__init__(model_class, mongo_service)
+        # 其他初始化...
     
     async def find_by_session_id(self, session_id: str) -> Optional[Session]:
         """通过session_id字段查询会话"""

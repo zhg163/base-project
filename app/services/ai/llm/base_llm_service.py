@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
 from typing import Dict, Any, Optional, AsyncGenerator, List
+import re
 
 class BaseLLMService(ABC):
     """LLM服务抽象基类 - 定义所有模型必须实现的接口"""
@@ -38,3 +39,16 @@ class BaseLLMService(ABC):
     ) -> AsyncGenerator[Dict[str, Any], None]:
         """流式生成回复的标准接口"""
         pass
+
+    @abstractmethod
+    async def generate_stream_with_emotion(self, message, system_prompt, **kwargs):
+        """带情绪检测的流式生成"""
+        pass
+
+    def extract_emotion(self, text):
+        """从文本中提取情绪标签"""
+        emotion_pattern = r'『([\w]+)』'
+        match = re.search(emotion_pattern, text)
+        if match:
+            return match.group(1)
+        return None

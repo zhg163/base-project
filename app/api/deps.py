@@ -2,6 +2,7 @@ from fastapi import Depends
 from app.services.storage.mongo_repository import MongoRepository
 from app.services.storage.session_repository import SessionRepository
 from app.services.storage.redis_service import RedisService
+from app.services.storage.mongo_service import get_mongo_service
 
 def get_user_repository():
     """获取用户仓库实例"""
@@ -21,22 +22,15 @@ def get_user_repository():
     logger.debug(f"Creating User repository")
     return MongoRepository(User, mongo_service=mongo_service)
 
-def get_session_repository():
+def get_session_repository(mongo_service=Depends(get_mongo_service)):
     """获取会话存储库实例"""
-    from app.services.storage.mongo_service import MongoService
-    from app.services.storage.session_repository import SessionRepository
     from app.models.entities.mongo_models import Session
     from app.core.config import settings
     from app.utils.logging import logger
     
     logger.debug(f"Creating SessionRepository")
     
-    mongo_service = MongoService(
-        uri=settings.MONGODB_URL,
-        db_name=settings.MONGODB_DB_NAME
-    )
-    
-    return SessionRepository(Session, mongo_service=mongo_service)
+    return SessionRepository(model_class=Session, mongo_service=mongo_service)
 
 async def get_redis_service():
     """获取Redis服务实例"""
