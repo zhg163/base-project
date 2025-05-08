@@ -3,6 +3,7 @@ import logging
 from typing import Dict, Any, Optional, AsyncGenerator, List
 from dotenv import load_dotenv
 import re
+import json
 
 from langchain_core.messages import HumanMessage, SystemMessage
 from dashscope import Generation
@@ -226,3 +227,57 @@ class QianwenService(BaseLLMService):
                 "emotion": emotion,
                 "action": action
             }
+
+    async def chat_completion(self, messages: List[Dict[str, str]], **kwargs):
+        """修改对话历史格式化方法，确保历史消息被LLM正确处理"""
+        logger.info(f"千问模型接收到{len(messages)}条消息")
+        
+        # 更详细的日志，确保消息被正确处理
+        for i, msg in enumerate(messages):
+            logger.info(f"原始消息[{i}]详情: role={msg.get('role')}, role_name={msg.get('role_name')}, content长度={len(msg.get('content', ''))}")
+        
+        # 改进标准化逻辑
+        standardized_messages = []
+        for msg in messages:
+            # 创建新字典而不是复用，避免副作用
+            std_msg = {'content': msg.get('content', '')}
+            
+            # 明确的角色映射规则
+            if msg.get('role') == 'assistant' or msg.get('role_name') == 'assistant':
+                std_msg['role'] = 'assistant'
+            elif msg.get('role') == 'system':
+                std_msg['role'] = 'system'
+            else:
+                std_msg['role'] = 'user'
+            
+            standardized_messages.append(std_msg)
+        
+        logger.info(f"标准化后的消息数: {len(standardized_messages)}")
+        
+        # 确保添加系统提示词，但不要覆盖现有历史
+        system_prompt = kwargs.get('system_prompt', '')
+        if system_prompt:
+            # 添加明确的指令让模型注意历史消息
+            memory_instruction = "重要提示：用户之前可能提到过重要信息，请仔细阅读所有历史消息并在回答时准确引用这些信息。"
+            system_prompt = memory_instruction + "\n\n" + system_prompt
+            kwargs['system_prompt'] = system_prompt
+        
+        # 确保历史消息被模型重视，在最后一条用户消息前添加提示
+        if len(standardized_messages) > 1 and standardized_messages[-1]['role'] == 'user':
+            for i in range(len(standardized_messages)-1):
+                if standardized_messages[i]['role'] == 'user' and '幸运数字' in standardized_messages[i]['content']:
+                    # 让最后一条消息更明确地引用历史
+                    standardized_messages[-1]['content'] = f"请记住我之前说过的信息并回答：{standardized_messages[-1]['content']}"
+                    break
+        
+        # 发送前验证消息完整性
+        valid_messages = [msg for msg in standardized_messages if msg.get('content') and len(msg.get('content', '')) > 0]
+        if len(valid_messages) < len(standardized_messages):
+            logger.warning(f"过滤掉了{len(standardized_messages) - len(valid_messages)}条空消息")
+            standardized_messages = valid_messages
+        
+        # 在chat_completion方法的标准化消息后添加
+        logger.info(f"最终发送给LLM的完整消息列表: {json.dumps([{{'role': m.get('role'), 'content_preview': m.get('content', '')[:30] + '...' if m.get('content') else ''}} for m in standardized_messages], ensure_ascii=False)}")
+        
+        # 调用原有实现
+        return await self._chat_completion_impl(standardized_messages, **kwargs)

@@ -65,3 +65,6 @@ deactivate
 
 # 查看已安装的所有包并更新requirements.txt
 pip freeze > complete_requirements.txt
+
+
+nohup uvicorn main:app --reload --host 0.0.0.0 --port 8001

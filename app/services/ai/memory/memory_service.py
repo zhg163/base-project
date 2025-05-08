@@ -51,7 +51,7 @@ class MemoryService:
         """
         self.redis_memory = redis_memory or RedisMemory()
         self.mongo_backup = mongo_backup or MongoBackup()
-        self.max_context_length = int(os.getenv("MAX_CONTEXT_LENGTH", 40))
+        self.max_context_length = int(os.getenv("MAX_CONTEXT_LENGTH", 1000))
         self.message_ttl = int(os.getenv("MESSAGE_TTL", 300))
         logger.info(f"记忆服务初始化完成，最大上下文长度={self.max_context_length}")
     
