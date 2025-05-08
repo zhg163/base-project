@@ -27,7 +27,7 @@ async def get_role(
         raise HTTPException(status_code=404, detail="角色不存在")
     return role
 
-@router.post("", response_model=RoleResponse, status_code=status.HTTP_201_CREATED)
+@router.post("/", response_model=RoleResponse, status_code=status.HTTP_201_CREATED)
 async def create_role(
     role_data: RoleCreate,
     role_repo: MongoRepository = Depends(get_role_repository)

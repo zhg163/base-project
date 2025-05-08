@@ -39,8 +39,11 @@ class MongoRepository(Generic[T]):
         doc = obj.model_dump_mongo()
         
         # 异步插入文档
-        import asyncio
-        inserted_id = await asyncio.to_thread(self.mongo.insert_one, self.collection_name, doc)
+        #import asyncio
+        #inserted_id = await asyncio.to_thread(self.mongo.insert_one, self.collection_name, doc)
+
+        # 异步插入文档
+        inserted_id = await self.mongo.insert_one(self.collection_name, doc)
         
         # 更新实例 ID
         if hasattr(obj, "id"):
