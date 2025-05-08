@@ -68,27 +68,26 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
                 log_level = "warning"
                 
             getattr(logger, log_level)(
-                f"Request completed: {method} {path} {status_code}",
-                extra={
-                    "data": {
-                        "method": method,
-                        "path": path,
-                        "status_code": status_code,
-                        "process_time_ms": round(process_time, 2),
-                    }
-                }
+                f"Request completed: {request.method} {request.url.path} {status_code}",
+                extra={"request_info": {
+                    "request_id": request_id,
+                    "method": request.method,
+                    "path": request.url.path,
+                    "status_code": status_code,
+                    "process_time_ms": process_time
+                }}
             )
             
             return response
         except Exception as exc:
             process_time = (time.time() - start_time) * 1000
             logger.error(
-                f"Request failed: {method} {path}",
+                f"Request failed: {request.method} {request.url.path}",
                 exc_info=exc,
                 extra={
                     "data": {
-                        "method": method,
-                        "path": path,
+                        "method": request.method,
+                        "path": request.url.path,
                         "process_time_ms": round(process_time, 2),
                         "error": str(exc),
                     }

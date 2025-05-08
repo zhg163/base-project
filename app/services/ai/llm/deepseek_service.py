@@ -7,6 +7,9 @@ from dotenv import load_dotenv, find_dotenv
 import httpx
 import json
 import re
+import uuid
+import time
+from app.utils.logging import logger, AILogger, LogContext, merge_extra_data
 
 # 设置日志记录
 logger = logging.getLogger(__name__)
@@ -57,7 +60,7 @@ class DeepseekService(BaseLLMService):
         if not self.api_key:
             logger.warning("未设置DEEPSEEK_API_KEY环境变量")
         else:
-            logger.info(f"DeepSeek服务初始化完成，使用模型: {self._model_name}")
+            logger.info("DeepSeek服务初始化完成", extra={"data": {"model": self._model_name}})
         
         # 开发模式
         self.dev_mode = os.getenv("DEV_MODE", "False").lower() == "true"
@@ -157,6 +160,12 @@ class DeepseekService(BaseLLMService):
         # 添加流式参数
         params["stream"] = True
         
+        request_id = str(uuid.uuid4())
+        ai_logger = AILogger(model_id=self.model_name, request_id=request_id)
+        
+        ai_logger.log_prompt(prompt=message, role_id=kwargs.get('role_id'))
+        start_time = time.time()
+        
         try:
             async with httpx.AsyncClient() as client:
                 async with client.stream(
@@ -184,6 +193,9 @@ class DeepseekService(BaseLLMService):
                     "message": f"DeepSeek流式API调用异常: {str(e)}"
                 }
             }
+        
+        latency = (time.time() - start_time) * 1000
+        ai_logger.log_completion(completion="<streaming>", tokens=0, latency=latency)
     
     def _generate_dev_response(self, message: str) -> Dict[str, Any]:
         """开发模式下生成模拟响应"""
@@ -245,3 +257,56 @@ class DeepseekService(BaseLLMService):
                 "emotion": emotion,
                 "action": action
             }
+
+    async def chat_completion(self, messages: List[Dict[str, str]], **kwargs):
+        """调用LLM服务生成回复"""
+        stream = kwargs.get("stream", False)
+        temperature = kwargs.get("temperature", 0.7)
+        max_tokens = kwargs.get("max_tokens", 1000)
+        
+        # 详细记录LLM请求参数
+        logger.info(f"LLM请求配置: stream={stream}, temperature={temperature}, max_tokens={max_tokens}")
+        
+        # 记录消息结构和内容摘要
+        system_messages = [m for m in messages if m["role"] == "system"]
+        user_messages = [m for m in messages if m["role"] == "user"]
+        assistant_messages = [m for m in messages if m["role"] == "assistant"]
+        
+        logger.info(f"LLM输入消息统计: 系统消息={len(system_messages)}, 用户消息={len(user_messages)}, 助手消息={len(assistant_messages)}")
+        
+        if system_messages:
+            logger.info(f"系统消息内容(截取): {system_messages[0]['content'][:100]}...")
+        
+        # 记录最后几条消息
+        last_messages = messages[-3:] if len(messages) > 3 else messages
+        for i, msg in enumerate(last_messages):
+            logger.info(f"最近消息[{i}]: role={msg['role']}, content_preview={msg['content'][:50]}..., 完整长度={len(msg['content'])}")
+        
+        # 添加实际LLM调用
+        params = {
+            "model": self._model_name,
+            "messages": messages,
+            "temperature": temperature,
+            "max_tokens": max_tokens,
+            "stream": stream
+        }
+
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                f"{self.api_base}/chat/completions",
+                headers={"Authorization": f"Bearer {self.api_key}"},
+                json=params,
+                timeout=60.0
+            )
+
+        result = response.json()
+        logger.info(f"LLM响应完成: 响应类型={'流式' if stream else '完整'}")
+        return result
+
+    def log_completion(self, completion, **kwargs):
+        extra = merge_extra_data({
+            'data': {
+                'completion_preview': completion[:100] + "..." if len(completion) > 100 else completion
+            }
+        })
+        logger.info(f"DeepSeek返回: 长度={len(completion)}", extra=extra)

@@ -446,3 +446,37 @@ class RedisService:
         key = f"custom_session:{session_id}"
         await self.delete(key)
         logger.debug(f"Session deleted from Redis: {key}")
+
+    async def llen(self, key: str) -> int:
+        """获取列表长度
+        
+        Args:
+            key: Redis键名
+            
+        Returns:
+            int: 列表长度
+        """
+        try:
+            async with self.get_connection() as conn:
+                return await conn.llen(key)
+        except Exception as e:
+            logger.error(f"Redis llen操作失败: {str(e)}")
+            return 0
+
+    async def lrange(self, key: str, start: int, end: int) -> list:
+        """获取列表指定范围的元素
+        
+        Args:
+            key: Redis键名
+            start: 开始索引
+            end: 结束索引
+            
+        Returns:
+            list: 元素列表
+        """
+        try:
+            async with self.get_connection() as conn:
+                return await conn.lrange(key, start, end)
+        except Exception as e:
+            logger.error(f"Redis lrange操作失败: {str(e)}")
+            return []

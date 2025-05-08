@@ -25,16 +25,21 @@ from app.services.ai.rag.rag_router import RAGRouter
 from app.services.ai.rag.rag_service import RAGService
 from app.services.ai.tools.tool_router import ContentToolRouter
 from app.services.ai.tools.function_caller import FunctionCaller
+from app.services.ai.memory.memory_service import MemoryService
+from app.utils.logging import logger, AILogger, LogContext, merge_extra_data
 
 class ChatService:
     """聊天服务，整合各个AI组件提供聊天功能"""
     
-    def __init__(self, llm_service=None, session_service=None, role_selector=None):
+    def __init__(self, llm_service=None, session_service=None, role_selector=None, memory_service=None):
         """初始化聊天服务"""
         # 使用注入的依赖，而非尝试自创建
         self.llm_service = llm_service or LLMFactory().get_llm_service()
         self.session_service = session_service  # 必须由外部提供，不自行创建
         self.role_selector = role_selector or RoleSelector(llm_service=self.llm_service)
+        
+        # 添加记忆服务
+        self.memory_service = memory_service or MemoryService()
         
         # 仅创建自身直接负责的对象
         self.stream_formatter = StreamFormatter()
@@ -44,7 +49,6 @@ class ChatService:
             # 抛出明确的错误，而不是尝试创建
             raise ValueError("ChatService requires a session_service")
         
-        logger = logging.getLogger(__name__)
         logger.info("聊天服务初始化完成")
         
         # 使用延迟初始化和错误容忍模式初始化新组件
@@ -199,188 +203,234 @@ class ChatService:
         model_type: Optional[str] = None
     ) -> AsyncGenerator[str, None]:
         """流式聊天接口"""
-        try:
-            # 标记事件是否已发送，避免重复
-            events_sent = {
-                "role_selected": False,
-                "thinking": False
-            }
-            
-            # 初始化情绪和动作变量
-            last_emotion = None
-            last_action = None
-            
-            # 1. 获取会话信息
-            session = await self._get_session(session_id)
-            if not session:
-                yield self.sse_formatter.format_sse({'event': 'error', 'message': '会话不存在'})
-                return
-
-            # 2. 选择角色
-            selected_role = None
-            if session and session.roles:
-                selected_role = await self.role_selector.select_most_relevant_role(
-                    message, session.roles
-                )
-                
-                # 推送角色选择事件 (仅发送一次)
-                if selected_role and not events_sent["role_selected"]:
-                    selection_notice = {
-                        "event": "role_selected",
-                        "role_name": selected_role.role_name,
-                        "role_id": str(selected_role.id)
-                    }
-                    yield self.sse_formatter.format_sse(selection_notice)
-                    events_sent["role_selected"] = True
-            
-            # 新增功能: 内容过滤决策
-            if self.content_filter:
-                try:
-                    filter_result = await self.content_filter.filter_content(message)
-                    if filter_result["decision"].action == "block":
-                        yield self.sse_formatter.format_sse({'event': 'error', 'message': '内容违反规定'})
-                        return
-                except Exception as e:
-                    logging.warning(f"内容过滤失败，继续处理: {str(e)}")
-            
-            # 3. 发送思考事件 (根据show_thinking参数决定，仅发送一次)
-            if show_thinking and not events_sent["thinking"]:
-                thinking_event = {"event": "thinking", "message": "分析问题..."}
-                yield self.sse_formatter.format_sse(thinking_event)
-                events_sent["thinking"] = True
-            
-            # 新增功能: RAG决策和检索 (提取为单独函数避免代码重复)
-            rag_content = await self._get_rag_content(message) if self.rag_router else None
-            
-            # 4. 确定使用哪个模型 (保持与原接口一致)
-            if not model_type:
-                model_type = os.getenv("DEFAULT_MODEL_TYPE", "deepseek")
-            
-            # 获取LLM服务
-            llm_service = LLMFactory().get_llm_service(model_type)
-            
-            # 5. 构建系统提示词
-            system_prompt = None
-            if selected_role and selected_role.system_prompt:
-                system_prompt = selected_role.system_prompt
-            else:
-                system_prompt = PromptService().get_system_prompt()
-            
-            # 添加RAG内容到提示词
-            if rag_content:
-                # 将检索到的知识融入提示词
-                system_prompt = self._enrich_prompt_with_rag(system_prompt, rag_content)
-            
-            # 6. 生成唯一请求ID并初始化缓存
+        with LogContext(session_id=session_id, user_id=user_id) as ctx_logger:
             request_id = f"{session_id}:{uuid.uuid4()}"
-            if not hasattr(self, 'sent_content_cache'):
-                self.sent_content_cache = {}
-            self.sent_content_cache[request_id] = ""
-            
-            # 7. 生成响应并流式返回
-            async for chunk in llm_service.generate_stream(
-                message=message,
-                system_prompt=system_prompt,
-                temperature=0.7,
-                rag_content=rag_content,
-                filter_decision=filter_result["decision"] if filter_result else None
-            ):
-                # 处理情绪和动作
-                if isinstance(chunk, dict):
-                    # 从字典中直接获取emotion和action (如果API直接返回)
-                    emotion = chunk.get('emotion')
-                    action = chunk.get('action')
+            content_buffer = ""  # 用于累积完整回复
+            ctx_logger.info("进入chat_stream方法")
+            try:
+                # 标记事件是否已发送，避免重复
+                events_sent = {
+                    "role_selected": False,
+                    "thinking": False
+                }
+                
+                # 情绪和动作变量初始化
+                last_emotion = None
+                last_action = None
+                
+                # 1. 获取会话
+                session = await self._get_session(session_id)
+                if not session:
+                    yield self.sse_formatter.format_sse({'event': 'error', 'message': '会话不存在'})
+                    return
+                
+                # 2. 选择角色
+                selected_role = None
+                if session and session.roles:
+                    selected_role = await self.role_selector.select_most_relevant_role(message, session.roles)
                     
-                    # 如果没有直接返回情绪和动作，尝试从内容中提取
-                    if 'content' in chunk and not emotion:
-                        emotion = self._extract_emotion(chunk['content'])
-                        logging.debug(f"从内容中提取情绪: {emotion}")
-                    
-                    if 'content' in chunk and not action:
-                        action = self._extract_action(chunk['content'])
-                        logging.debug(f"从内容中提取动作: {action}")
-                    
-                    # 检测到新情绪
-                    if emotion and emotion != last_emotion:
-                        logging.info(f"发送情绪事件: {emotion}")
-                        yield self.sse_formatter.format_sse({
-                            "event": "emotion",
-                            "emotion": emotion,
-                            "role_name": selected_role.role_name if selected_role else None
-                        })
-                        last_emotion = emotion
-                    
-                    # 检测到新动作
-                    if action and action != last_action:
-                        logging.info(f"发送动作事件: {action}")
-                        yield self.sse_formatter.format_sse({
-                            "event": "action",
-                            "action": action,
-                            "role_name": selected_role.role_name if selected_role else None
-                        })
-                        last_action = action
-                    
-                    # 处理内容
-                    if 'content' in chunk:
-                        current_text = chunk['content']
-                        self.sent_content_cache[request_id] = current_text
+                    # 推送角色选择事件 (仅发送一次)
+                    if selected_role and not events_sent["role_selected"]:
+                        selection_notice = {
+                            "event": "role_selected",
+                            "role_name": selected_role.role_name,
+                            "role_id": str(selected_role.role_id)
+                        }
+                        yield self.sse_formatter.format_sse(selection_notice)
+                        events_sent["role_selected"] = True
+                
+                # 3. 保存用户消息
+                await self.memory_service.add_user_message(session_id, message, user_id)
+                
+                # 4. 内容过滤决策
+                if self.content_filter:
+                    try:
+                        filter_result = await self.content_filter.filter_content(message)
+                        if filter_result["decision"].action == "block":
+                            yield self.sse_formatter.format_sse({'event': 'error', 'message': '内容违反规定'})
+                            return
+                    except Exception as e:
+                        ctx_logger.warning(f"内容过滤失败，继续处理: {str(e)}")
+                
+                # 5. 发送思考事件 
+                if show_thinking and not events_sent["thinking"]:
+                    thinking_event = {"event": "thinking", "message": "分析问题..."}
+                    yield self.sse_formatter.format_sse(thinking_event)
+                    events_sent["thinking"] = True
+                
+                # 6. RAG决策和检索
+                rag_content = await self._get_rag_content(message) if self.rag_router else None
+                
+                # 7. 获取历史消息
+                history = await self.memory_service.build_message_history(session_id)
+                ctx_logger.info("将历史消息添加到LLM上下文", extra={"data": {"message_count": len(history)}})
+                
+                # 8. 确定使用哪个模型
+                if not model_type:
+                    model_type = os.getenv("DEFAULT_MODEL_TYPE", "deepseek")
+                
+                # 获取LLM服务
+                llm_service = LLMFactory().get_llm_service(model_type)
+                
+                # 9. 构建系统提示词
+                system_prompt = None
+                if selected_role and selected_role.system_prompt:
+                    system_prompt = selected_role.system_prompt
+                else:
+                    system_prompt = PromptService().get_system_prompt()
+                
+                # 添加RAG内容到提示词
+                if rag_content:
+                    # 将检索到的知识融入提示词
+                    system_prompt = self._enrich_prompt_with_rag(system_prompt, rag_content)
+                
+                # 10. 流式生成并发送
+                if not hasattr(self, 'sent_content_cache'):
+                    self.sent_content_cache = {}
+                self.sent_content_cache[request_id] = ""
+                
+                async for chunk in llm_service.generate_stream(
+                    message=message,
+                    system_prompt=system_prompt,
+                    temperature=0.7,
+                    history=history,  # 包含历史记录
+                    rag_content=rag_content,
+                    filter_decision=filter_result["decision"] if filter_result else None
+                ):
+                    # 处理情绪和动作
+                    if isinstance(chunk, dict):
+                        # 从字典中直接获取emotion和action (如果API直接返回)
+                        emotion = chunk.get('emotion')
+                        action = chunk.get('action')
                         
-                        response_data = {'content': current_text}
-                        if selected_role:
-                            response_data['role_name'] = selected_role.role_name
+                        # 如果没有直接返回情绪和动作，尝试从内容中提取
+                        if 'content' in chunk and not emotion:
+                            emotion = self._extract_emotion(chunk['content'])
+                            ctx_logger.debug(f"从内容中提取情绪: {emotion}")
+                        
+                        if 'content' in chunk and not action:
+                            action = self._extract_action(chunk['content'])
+                            ctx_logger.debug(f"从内容中提取动作: {action}")
+                        
+                        # 检测到新情绪
+                        if emotion and emotion != last_emotion:
+                            ctx_logger.info(f"发送情绪事件: {emotion}")
+                            yield self.sse_formatter.format_sse({
+                                "event": "emotion",
+                                "emotion": emotion,
+                                "role_name": selected_role.role_name if selected_role else None
+                            })
+                            last_emotion = emotion
+                        
+                        # 检测到新动作
+                        if action and action != last_action:
+                            ctx_logger.info(f"发送动作事件: {action}")
+                            yield self.sse_formatter.format_sse({
+                                "event": "action",
+                                "action": action,
+                                "role_name": selected_role.role_name if selected_role else None
+                            })
+                            last_action = action
+                        
+                        # 处理内容
+                        if 'content' in chunk:
+                            current_text = chunk['content']
+                            ctx_logger.info(f"--------------------------------current_text: {current_text}，content_buffer: {content_buffer} ，current_text.startswith(content_buffer): {current_text.startswith(content_buffer)}")
+                            # 自适应累积逻辑
+                            # 检查当前文本是否已包含之前累积的内容
+                            if content_buffer and current_text.startswith(content_buffer):
+                                # 千问模式: 模型自身已累积，直接使用当前文本
+                                content_buffer = current_text
+                            else:
+                                # Deepseek模式: 模型没有累积，需要手动累积
+                                content_buffer += current_text
+                                ctx_logger.info(f"--------------------------------content_buffer: {content_buffer}")
+                            self.sent_content_cache[request_id] = content_buffer
+                            
+                            response_data = {
+                                'content': content_buffer,
+                                'role_name': selected_role.role_name if selected_role else None,
+                                'role_id': str(selected_role.role_id) if selected_role else None
+                            }
+                            yield self.sse_formatter.format_sse(response_data)
+                    
+                    # 字符串处理
+                    elif isinstance(chunk, str):
+                        current_text = chunk
+                        ctx_logger.info(f"--------------------------------current_text: {current_text}，content_buffer: {content_buffer} ，current_text.startswith(content_buffer): {current_text.startswith(content_buffer)}")
+                        # 自适应累积逻辑
+                        # 检查当前文本是否已包含之前累积的内容
+                        if content_buffer and current_text.startswith(content_buffer):
+                            # 千问模式: 模型自身已累积，直接使用当前文本
+                            content_buffer = current_text
+                        else:
+                            # Deepseek模式: 模型没有累积，需要手动累积
+                            content_buffer += current_text
+                            ctx_logger.info(f"--------------------------------content_buffer: {content_buffer}")
+                        
+                        # 更新缓存
+                        self.sent_content_cache[request_id] = content_buffer
+                        
+                        # 从字符串中尝试提取情绪和动作
+                        extracted_emotion = self._extract_emotion(current_text)
+                        if extracted_emotion and extracted_emotion != last_emotion:
+                            ctx_logger.info(f"从字符串中提取并发送情绪: {extracted_emotion}")
+                            yield self.sse_formatter.format_sse({
+                                "event": "emotion",
+                                "emotion": extracted_emotion,
+                                "role_name": selected_role.role_name if selected_role else None
+                            })
+                            last_emotion = extracted_emotion
+                        
+                        extracted_action = self._extract_action(current_text)
+                        if extracted_action and extracted_action != last_action:
+                            ctx_logger.info(f"从字符串中提取并发送动作: {extracted_action}")
+                            yield self.sse_formatter.format_sse({
+                                "event": "action",
+                                "action": extracted_action,
+                                "role_name": selected_role.role_name if selected_role else None
+                            })
+                            last_action = extracted_action
+                        
+                        # 发送文本内容
+                        response_data = {
+                            'content': content_buffer,
+                            'role_name': selected_role.role_name if selected_role else None,
+                            'role_id': str(selected_role.role_id) if selected_role else None
+                        }
                         yield self.sse_formatter.format_sse(response_data)
                 
-                # 字符串处理
-                elif isinstance(chunk, str):
-                    current_text = chunk
-                    self.sent_content_cache[request_id] = current_text
-                    
-                    # 从字符串中尝试提取情绪和动作
-                    extracted_emotion = self._extract_emotion(current_text)
-                    if extracted_emotion and extracted_emotion != last_emotion:
-                        logging.info(f"从字符串中提取并发送情绪: {extracted_emotion}")
-                        yield self.sse_formatter.format_sse({
-                            "event": "emotion",
-                            "emotion": extracted_emotion,
-                            "role_name": selected_role.role_name if selected_role else None
-                        })
-                        last_emotion = extracted_emotion
-                    
-                    extracted_action = self._extract_action(current_text)
-                    if extracted_action and extracted_action != last_action:
-                        logging.info(f"从字符串中提取并发送动作: {extracted_action}")
-                        yield self.sse_formatter.format_sse({
-                            "event": "action",
-                            "action": extracted_action,
-                            "role_name": selected_role.role_name if selected_role else None
-                        })
-                        last_action = extracted_action
-                    
-                    # 发送文本内容
-                    response_data = {'content': current_text}
-                    if selected_role:
-                        response_data['role_name'] = selected_role.role_name
-                    yield self.sse_formatter.format_sse(response_data)
-            
-            # 完成事件
-            yield self.sse_formatter.format_sse({"event": "completion"})
-            
-            # 清理缓存
-            if request_id in self.sent_content_cache:
-                del self.sent_content_cache[request_id]
-            
-        except Exception as e:
-            logging.error(f"流式聊天出错: {str(e)}")
-            yield self.sse_formatter.format_sse({'event': 'error', 'message': str(e)})
+                # 11. 保存助手回复
+                if content_buffer and selected_role:
+                    await self.memory_service.add_assistant_message(
+                        session_id, 
+                        content_buffer,
+                        role_name=selected_role.role_name,
+                        role_id=str(selected_role.role_id)
+                    )
+                    ctx_logger.debug(f"助手回复已保存至记忆服务: session={session_id}, 长度={len(content_buffer)}")
+                
+                # 12. 完成事件
+                yield self.sse_formatter.format_sse({"event": "completion"})
+                
+                # 13. 清理缓存
+                if request_id in self.sent_content_cache:
+                    del self.sent_content_cache[request_id]
+                
+            except Exception as e:
+                # 只包含非冲突字段
+                extra = {"error_type": type(e).__name__}
+                ctx_logger.error(f"流式聊天出错: {str(e)}", exc_info=True, extra=extra)
+                yield self.sse_formatter.format_sse({"event": "error", "content": "处理消息时出错，请刷新页面重试"})
 
     async def _get_session(self, session_id):
         """获取会话信息"""
         try:
-            # 使用已初始化的会话服务
+            # 使用logger而非ctx_logger
             session = await self.session_service.get_session_by_id(session_id)
             return session
         except Exception as e:
-            logging.error(f"获取会话失败: {str(e)}")
+            logger.error(f"获取会话失败: {str(e)}")
             return None
 
     async def chat(self, session_id, message, user_id, show_thinking=False):
@@ -421,7 +471,7 @@ class ChatService:
             }
             
         except Exception as e:
-            logging.error(f"聊天请求处理出错: {str(e)}")
+            logger.error(f"聊天请求处理出错: {str(e)}")
             return {"error": str(e)}
 
     # 新增辅助方法，提取RAG内容获取逻辑
@@ -432,7 +482,7 @@ class ChatService:
             if rag_decision.should_trigger and hasattr(self, 'rag_service') and self.rag_service:
                 return await self.rag_service.retrieve(message)
         except Exception as e:
-            logging.warning(f"RAG路由失败: {str(e)}")
+            logger.warning(f"RAG路由失败: {str(e)}")
         return None
 
     # 新增辅助方法，将RAG内容融入提示词
@@ -456,7 +506,7 @@ class ChatService:
         match = re.search(emotion_pattern, text)
         if match:
             emotion = match.group(1)
-            logging.info(f"提取到情绪: {emotion}")
+            logger.info(f"提取到情绪: {emotion}")
             return emotion
         return None
 
@@ -470,6 +520,102 @@ class ChatService:
         match = re.search(action_pattern, text)
         if match:
             action = match.group(1)
-            logging.info(f"提取到动作: {action}")
+            logger.info(f"提取到动作: {action}")
             return action
         return None
+
+    async def handle_message(self, session_id: str, message: str, user_id: str = None, user_name: str = None, role_name: str = "assistant", **kwargs):
+        """处理用户消息并生成回复"""
+        logger.info(f"开始处理消息: session_id={session_id}, 消息长度={len(message)}")
+        
+        # 保存用户消息到记忆
+        await self.memory_service.add_user_message(
+            session_id=session_id,
+            message=message,
+            user_id=user_id,
+            user_name=user_name
+        )
+        logger.info(f"用户消息已保存到记忆: user_id={user_id}, user_name={user_name}")
+        
+        # 获取消息历史用于上下文
+        message_history = await self.memory_service.build_message_history(session_id)
+        logger.info(f"从记忆服务获取到 {len(message_history)} 条历史消息")
+        
+        # 获取角色系统提示
+        system_prompt = await self._get_system_prompt(session_id, role_name)
+        logger.info(f"获取角色[{role_name}]系统提示，长度={len(system_prompt)}")
+        
+        # 在这里添加历史和系统提示合并的详细日志
+        system_message = {"role": "system", "content": system_prompt}
+        messages_with_system = [system_message] + message_history
+        
+        # 详细记录完整的消息结构
+        logger.info(f"完整提示结构: 系统提示({len(system_prompt)}字符) + {len(message_history)}条历史消息")
+        logger.info(f"发送到LLM的总消息数: {len(messages_with_system)}")
+        logger.info(f"发送到LLM的总字符数: {sum(len(m['content']) for m in messages_with_system)}")
+        
+        # 调用LLM服务前记录详情
+        logger.info(f"调用LLM服务: stream={kwargs.get('stream', False)}, 消息摘要={message[:30]}...")
+        
+        # 调用LLM服务
+        response = await self.llm_service.generate_stream(
+            message=message,
+            system_prompt=system_prompt,
+            temperature=0.7,
+            history=message_history
+        )
+        return response
+
+    async def stream_response(self, session_id, user_message, role_id=None, role_name="assistant"):
+        """流式响应处理方法，返回累积的内容而不是增量"""
+        try:
+            # 获取会话和角色信息
+            session = await self._get_session(session_id)
+            if not session:
+                yield {"error": "会话不存在"}
+                return
+            
+            # 获取LLM服务
+            llm_service = LLMFactory().get_llm_service()
+            
+            # 获取历史消息
+            history = await self.memory_service.build_message_history(session_id)
+            logger.info("将历史消息添加到LLM上下文", extra={"data": {"message_count": len(history)}})
+            
+            # 获取系统提示
+            system_prompt = await self._get_system_prompt(session_id, role_name)
+            
+            # 生成响应流
+            response_stream = await llm_service.generate_stream(
+                message=user_message,
+                system_prompt=system_prompt,
+                temperature=0.7,
+                history=history
+            )
+            
+            # 累积响应内容
+            accumulated_content = ""
+            
+            async for chunk in response_stream:
+                if chunk:
+                    accumulated_content += chunk
+                    yield {
+                        "content": accumulated_content,  # 返回累积内容而非仅增量
+                        "role_name": role_name,
+                        "role_id": role_id  # 确保role_id被包含
+                    }
+            
+            # 保存助手回复到记忆
+            if accumulated_content:
+                await self.memory_service.add_assistant_message(
+                    session_id,
+                    accumulated_content,
+                    role_name=role_name,
+                    role_id=role_id
+                )
+            
+        except Exception as e:
+            import traceback
+            logger.error(f"流式响应处理出错: {str(e)}", exc_info=True)
+            logger.error(f"详细错误堆栈: {traceback.format_exc()}")
+            yield {"error": str(e)}

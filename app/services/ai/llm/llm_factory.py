@@ -51,8 +51,8 @@ class LLMFactory:
     def _get_deepseek_service(self):
         """获取DeepSeek服务（惰性加载）"""
         if not hasattr(self, '_deepseek_service'):
-            from app.services.ai.llm.deepseek_service import DeepSeekService
-            self._deepseek_service = DeepSeekService()
+            from app.services.ai.llm.deepseek_service import DeepseekService
+            self._deepseek_service = DeepseekService()
         return self._deepseek_service
 
     def _get_qianwen_service(self):

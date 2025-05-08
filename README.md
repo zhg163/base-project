@@ -18,12 +18,31 @@
 git clone <repository-url>
 cd ai_project
 
+# 创建缓存目录
+mkdir -p ~/.pyenv/cache
 
+# 通过国内镜像下载源码包（任选一个镜像源）
+# 镜像源1：淘宝npm镜像
+wget https://npmmirror.com/mirrors/python/3.11.6/Python-3.11.6.tar.xz -P ~/.pyenv/cache/
+
+# 镜像源2：华为云镜像
+# wget https://mirrors.huaweicloud.com/python/3.11.6/Python-3.11.6.tar.xz -P ~/.pyenv/cache/
+
+PYTHON_BUILD_MIRROR_URL="https://mirrors.huaweicloud.com/python"   /home/pyenv/bin/pyenv install 3.11.6
+# 手动安装
+pyenv install 3.11.6
+
+pyenv install 3.11.6
 # 切换到 Python 3.11.6
 pyenv shell 3.11.6
 
+/home/pyenv/bin/pyenv local 3.11.6
+
 # 创建虚拟环境
 python -m venv venv
+
+pyenv virtualenv 3.11.6 venv
+pyenv activate venv
 
 # 激活虚拟环境
 # 在 macOS/Linux 上

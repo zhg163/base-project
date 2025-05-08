@@ -65,7 +65,7 @@ class Settings(BaseSettings):
     
     # 日志配置
     LOG_LEVEL: str = "INFO"
-    LOG_FORMAT: str = "%(levelprefix)s | %(asctime)s | %(message)s"
+    LOG_FORMAT: str = "%(levelname)s %(message)s [time=%(asctime)s, module=%(module)s, func=%(funcName)s, line=%(lineno)d]"
     LOG_FILE: Optional[str] = None
     JSON_LOGS: bool = True
     LOG_REQUEST_BODY: bool = False
@@ -115,3 +115,15 @@ class Settings(BaseSettings):
 
 # 创建全局设置对象
 settings = Settings()
+
+# 在配置设置中修改
+LOGGING = {
+    "version": 1,
+    "formatters": {
+        "standard": {
+            "format": "%(levelname)s %(message)s [time=%(asctime)s, module=%(module)s, func=%(funcName)s, line=%(lineno)d]",
+            "datefmt": "%Y-%m-%d %H:%M:%S",
+        }
+    }
+    # ...其他配置保持不变
+}

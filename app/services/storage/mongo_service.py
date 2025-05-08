@@ -6,6 +6,7 @@ from pymongo.collection import Collection
 from pymongo.errors import PyMongoError
 from bson import ObjectId
 from contextlib import contextmanager
+import asyncio
 
 from app.core.config import settings
 from app.utils.logging import logger
@@ -86,7 +87,7 @@ class MongoService:
                     raise
     
     # 基本文档操作
-    def insert_one(self, collection_name: str, document: Dict) -> str:
+    async def insert_one(self, collection_name: str, document: Dict) -> str:
         """插入单个文档
         
         Args:
@@ -96,13 +97,11 @@ class MongoService:
         Returns:
             插入文档的ID
         """
-        try:
+        def _insert():
             collection = self.get_collection(collection_name)
             result = collection.insert_one(document)
             return str(result.inserted_id)
-        except PyMongoError as e:
-            logger.error(f"Failed to insert document into {collection_name}: {str(e)}")
-            raise
+        return await asyncio.to_thread(_insert)
     
     def find_one(self, collection_name: str, filter_dict: Dict = None, 
                 projection: Dict = None) -> Optional[Dict]:

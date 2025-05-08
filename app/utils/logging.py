@@ -26,10 +26,38 @@ class LogConfig(BaseModel):
     LOG_FILE_RETENTION: str = "1 month"
     
     # JSON格式化配置
-    JSON_LOGS: bool = True
+    JSON_LOGS: bool = False
     
     # 输出目标
     CONSOLE_LOG: bool = True
+
+
+class SimpleFormatter(logging.Formatter):
+    """简化的日志格式化器，仅输出基本信息"""
+    
+    def format(self, record):
+        """简化格式化，不添加JSON元数据"""
+        # 获取级别和消息
+        level = record.levelname
+        message = record.getMessage()
+        
+        # 直接返回等级+消息格式，不添加JSON
+        return f"{level} {message}"
+
+
+class CustomFormatter(logging.Formatter):
+    def format(self, record):
+        # 替换现有的JSON格式
+        level = record.levelname
+        message = record.getMessage()
+        
+        # 其他元数据
+        timestamp = self.formatTime(record, self.datefmt)
+        module = record.module
+        function = record.funcName
+        line = record.lineno
+        
+        return f"{level} {message} [time={timestamp}, module={module}, func={function}, line={line}]"
 
 
 class JsonFormatter(logging.Formatter):
@@ -40,10 +68,15 @@ class JsonFormatter(logging.Formatter):
         self.extras = kwargs
     
     def format(self, record):
+        # 先获取级别和消息
+        level = record.levelname
+        message = record.getMessage()
+        
+        # 创建日志记录字典
         log_record = {
             "timestamp": datetime.fromtimestamp(record.created).isoformat(),
-            "level": record.levelname,
-            "message": record.getMessage(),
+            "level": level,
+            "message": message,
             "module": record.module,
             "function": record.funcName,
             "line": record.lineno,
@@ -61,11 +94,18 @@ class JsonFormatter(logging.Formatter):
         if record.exc_info:
             log_record["exception"] = self.formatException(record.exc_info)
             
-        # 添加额外的自定义字段
-        if hasattr(record, "data") and record.data:
-            log_record.update(record.data)
+        # 安全地添加额外属性 - 更改此处逻辑避免冲突
+        for attr_name in dir(record):
+            # 只添加特定前缀的属性，避免冲突和内置属性
+            if attr_name.startswith('context_') and not attr_name.startswith('__'):
+                try:
+                    log_record[attr_name] = getattr(record, attr_name)
+                except (AttributeError, TypeError):
+                    pass
         
-        return json.dumps(log_record, ensure_ascii=False)
+        # 返回级别和消息在前面的格式
+        json_part = json.dumps(log_record, ensure_ascii=False)
+        return f"{level} {message} {json_part}"
 
 
 class RequestIdFilter(logging.Filter):
@@ -112,7 +152,7 @@ def get_logger(name: str = None, request_id: str = None) -> logging.Logger:
         if config.JSON_LOGS:
             formatter = JsonFormatter()
         else:
-            formatter = logging.Formatter(config.LOG_FORMAT)
+            formatter = CustomFormatter()
         console_handler.setFormatter(formatter)
         logger.addHandler(console_handler)
     
@@ -130,7 +170,7 @@ def get_logger(name: str = None, request_id: str = None) -> logging.Logger:
             if config.JSON_LOGS:
                 formatter = JsonFormatter()
             else:
-                formatter = logging.Formatter(config.LOG_FORMAT)
+                formatter = CustomFormatter()
                 
             file_handler.setFormatter(formatter)
             logger.addHandler(file_handler)
@@ -258,8 +298,10 @@ class LogContext:
     def __enter__(self):
         def record_factory(*args, **kwargs):
             record = self.old_factory(*args, **kwargs)
-            record.data = getattr(record, "data", {})
-            record.data.update(self.extra)
+            # 安全地合并数据，避免冲突
+            for key, value in self.extra.items():
+                # 使用前缀避免冲突
+                setattr(record, f"context_{key}", value)
             return record
             
         logging.setLogRecordFactory(record_factory)
@@ -277,25 +319,20 @@ class AILogger:
         self.model_id = model_id
         self.logger = get_logger("ai_model", request_id)
     
-    def log_prompt(self, prompt: str, role_id: str = None, tokens: int = None):
-        """记录发送到模型的提示词
-        
-        Args:
-            prompt: 提示词内容
-            role_id: 角色ID
-            tokens: 提示词的token数量
-        """
-        self.logger.info(
-            f"Prompt sent to {self.model_id or 'model'}",
-            extra={
-                "data": {
-                    "model_id": self.model_id,
-                    "role_id": role_id,
-                    "tokens": tokens,
-                    "prompt_preview": prompt[:100] + "..." if len(prompt) > 100 else prompt,
-                }
+    def log_prompt(self, prompt: str, role_id: str = None, tokens: int = None, system_prompt: str = None):
+        """记录发送到模型的提示词"""
+        # 使用安全的合并函数避免冲突
+        extra = merge_extra_data({
+            'data': {
+                'model_id': self.model_id,
+                'role_id': role_id,
+                'tokens': tokens,
+                'prompt_preview': prompt[:100] + "..." if len(prompt) > 100 else prompt,
+                # 有条件地添加系统提示预览
+                'system_prompt_preview': (system_prompt[:100] + "...") if system_prompt and len(system_prompt) > 100 else system_prompt,
             }
-        )
+        })
+        self.logger.info(f"Prompt sent to {self.model_id or 'model'}", extra=extra)
     
     def log_completion(self, completion: str, tokens: int = None, latency: float = None):
         """记录模型的回复
@@ -355,3 +392,45 @@ import asyncio
 
 # 初始化默认日志记录器
 logger = get_logger("ai_project")
+
+def setup_logging():
+    # 获取现有配置的处理器
+    existing_handlers = {}
+    
+    # 检查并删除现有处理器
+    for logger_name in ["", "uvicorn", "uvicorn.access", "fastapi", "ai_project"]:
+        logger = logging.getLogger(logger_name)
+        logger.handlers = []  # 清除所有现有处理器
+        logger.propagate = False if logger_name else True  # 根记录器允许传播
+    
+    # 创建单个共享处理器
+    console_handler = logging.StreamHandler(sys.stdout)
+    formatter = CustomFormatter()
+    console_handler.setFormatter(formatter)
+    
+    # 配置根记录器
+    root_logger = logging.getLogger("")
+    root_logger.addHandler(console_handler)
+    root_logger.setLevel(logging.INFO)
+    
+    # 配置应用记录器
+    app_logger = logging.getLogger("ai_project") 
+    app_logger.propagate = False  # 避免重复
+    app_logger.addHandler(console_handler)
+    
+    return app_logger
+
+# 添加工具函数处理额外数据
+def merge_extra_data(extra=None):
+    """合并额外日志数据，防止键冲突"""
+    result = {}
+    if extra:
+        # 确保不使用冲突的键名
+        if 'data' in extra and isinstance(extra['data'], dict):
+            # 使用更特定的前缀键名，避免冲突
+            for key, value in extra['data'].items():
+                prefixed_key = f"context_{key}"
+                result[prefixed_key] = value
+        else:
+            result.update(extra)
+    return result

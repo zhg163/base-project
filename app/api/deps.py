@@ -3,6 +3,7 @@ from app.services.storage.mongo_repository import MongoRepository
 from app.services.storage.session_repository import SessionRepository
 from app.services.storage.redis_service import RedisService
 from app.services.storage.mongo_service import get_mongo_service
+from app.services.ai.memory.memory_service import MemoryService
 
 def get_user_repository():
     """获取用户仓库实例"""
@@ -127,3 +128,7 @@ def get_chat_service(
         session_service=session_service,
         role_selector=role_selector
     )
+
+def get_memory_service():
+    """获取记忆服务实例"""
+    return MemoryService()

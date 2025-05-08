@@ -1,8 +1,3 @@
 {
-  "content": "好的，来一个轻松的笑话：\n\n**顾客**：老板，你这豆浆怎么这么稀？  \n**老板**：哪里稀了！这都是早上现挤的！  \n**顾客**：……现挤的？！  \n**老板**：对啊，你看那头奶牛（指向店外的奶牛），我现挤的豆子，现磨的！  \n\n（冷场两秒后）  \n**顾客**：……老板，那是头公牛。  \n\n😂  \n\n希望逗笑你了～ 还想听别的类型可以告诉我！",
-  "model": "deepseek-chat",
-  "session_id": "d17004ce-bda5-45ae-8355-667b63cc0cce",
-  "request_id": "cadbedc6-7b4c-4f0f-95de-93b14e3460e5",
-  "timestamp": "2025-05-05T13:36:29.053145",
-  "finish_reason": "stop"
+  "error": "缺少必要参数: message或session_id"
 }
