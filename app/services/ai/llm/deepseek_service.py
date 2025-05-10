@@ -10,6 +10,7 @@ import re
 import uuid
 import time
 from app.utils.logging import logger, AILogger, LogContext, merge_extra_data
+from .model_adapter import ModelAdapter
 
 # 设置日志记录
 logger = logging.getLogger(__name__)
@@ -45,7 +46,6 @@ else:
 
 from .deepseek_model import DeepSeekChatModel
 from .base_llm_service import BaseLLMService
-from .model_adapter import ModelAdapter
 
 class DeepseekService(BaseLLMService):
     """DeepSeek模型服务实现"""
@@ -135,30 +135,32 @@ class DeepseekService(BaseLLMService):
         message: str, 
         system_prompt: Optional[str] = None,
         temperature: float = 0.7,
-        max_tokens: Optional[int] = None,
+        history: Optional[List[Dict[str, str]]] = None,
         **kwargs
     ) -> AsyncGenerator[Dict[str, Any], None]:
         """流式生成回复"""
         if self.dev_mode:
             yield {"content": f"【DeepSeek开发模式】您的问题是：{message}\n\n"}
-            yield {"content": "正在流式生成回复..."}
-            yield {"content": "作为一个AI助手，我会尽力提供帮助。"}
             return
         
-        # 使用适配器转换参数
-        params = ModelAdapter.adapt_to_deepseek(
-            message=message,
-            system_prompt=system_prompt,
-            temperature=temperature,
-            max_tokens=max_tokens,
-            **kwargs
-        )
+        # 使用统一的消息构建方法
+        messages = ModelAdapter.build_messages(message, system_prompt, history)
         
-        # 添加必需的model参数
-        params["model"] = self._model_name
+        if history:
+            logger.info(f"历史消息示例: {history[:2]}")
+            logger.info(f"构建后的完整消息列表: {messages}")
+
+        # 构建参数
+        params = {
+            "model": self._model_name,
+            "messages": messages,
+            "temperature": temperature,
+            "stream": True
+        }
         
-        # 添加流式参数
-        params["stream"] = True
+        # 添加其他参数
+        if "max_tokens" in kwargs:
+            params["max_tokens"] = kwargs["max_tokens"]
         
         request_id = str(uuid.uuid4())
         ai_logger = AILogger(model_id=self.model_name, request_id=request_id)

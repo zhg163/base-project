@@ -335,7 +335,7 @@ class ChatService:
                         # 处理内容
                         if 'content' in chunk:
                             current_text = chunk['content']
-                            ctx_logger.info(f"--------------------------------current_text: {current_text}，content_buffer: {content_buffer} ，current_text.startswith(content_buffer): {current_text.startswith(content_buffer)}")
+                            #ctx_logger.info(f"--------------------------------current_text: {current_text}，content_buffer: {content_buffer} ，current_text.startswith(content_buffer): {current_text.startswith(content_buffer)}")
                             # 自适应累积逻辑
                             # 检查当前文本是否已包含之前累积的内容
                             if content_buffer and current_text.startswith(content_buffer):
@@ -344,7 +344,7 @@ class ChatService:
                             else:
                                 # Deepseek模式: 模型没有累积，需要手动累积
                                 content_buffer += current_text
-                                ctx_logger.info(f"--------------------------------content_buffer: {content_buffer}")
+                                #ctx_logger.info(f"--------------------------------content_buffer: {content_buffer}")
                             self.sent_content_cache[request_id] = content_buffer
                             
                             response_data = {

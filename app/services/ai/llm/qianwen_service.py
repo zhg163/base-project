@@ -10,6 +10,7 @@ from dashscope import Generation
 from dashscope.api_entities.dashscope_response import DashScopeAPIResponse
 
 from app.services.ai.llm.base_llm_service import BaseLLMService
+from .model_adapter import ModelAdapter
 
 load_dotenv()
 logger = logging.getLogger(__name__)
@@ -112,33 +113,31 @@ class QianwenService(BaseLLMService):
         message: str, 
         system_prompt: Optional[str] = None,
         temperature: float = 0.7,
-        max_tokens: Optional[int] = None,
+        history: Optional[List[Dict[str, str]]] = None,
         **kwargs
     ) -> AsyncGenerator[Dict[str, Any], None]:
         """流式生成回复"""
         if self.dev_mode:
             yield {"content": f"【开发模式】您的问题是：{message}\n\n正在流式生成回复..."}
-            yield {"content": "作为一个AI助手，我会尽力提供帮助。"}
             return
             
-        # 构建请求消息
-        messages = []
-        if system_prompt:
-            messages.append({"role": "system", "content": system_prompt})
-        messages.append({"role": "user", "content": message})
+        # 使用统一的消息构建方法
+        messages = ModelAdapter.build_messages(message, system_prompt, history)
+        
+        if history:
+            logger.info(f"历史消息示例: {history[:2]}")
+            logger.info(f"构建后的完整消息列表: {messages}")
         
         try:
             # 调用千问流式API
             response_gen = Generation.call(
                 model=self.model_name,
                 api_key=self.api_key,
-                messages=messages,
+                messages=messages,  # 使用构建的消息
                 result_format='message',
                 temperature=temperature,
-                max_tokens=max_tokens or 1024,
-                top_p=kwargs.get("top_p", 0.8),
-                enable_search=kwargs.get("enable_search", True),
-                stream=True  # 启用流式响应
+                max_tokens=kwargs.get("max_tokens", 1024),
+                stream=True
             )
             
             # 处理流式响应

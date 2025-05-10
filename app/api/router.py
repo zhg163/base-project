@@ -23,6 +23,3 @@ api_router.include_router(sessions.router, prefix="/custom-sessions", tags=["会
 
 # 如注册聊天路由
 api_router.include_router(chat.router, prefix="/llm", tags=["LLM"])
-
-# api_router.include_router(chat.router, prefix="/chat", tags=["聊天"])
-# api_router.include_router(documents.router, prefix="/documents", tags=["文档"])
