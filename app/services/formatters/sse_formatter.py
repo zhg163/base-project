@@ -9,9 +9,9 @@ class SSEFormatter:
     
     def format_sse(self, data):
         """将数据格式化为SSE标准格式"""
-        if isinstance(data, str):
-            return f"data: {data}\n\n"
-        return f"data: {json.dumps(data, ensure_ascii=False)}\n\n"
+        if isinstance(data, dict):
+            return f"data: {json.dumps(data, ensure_ascii=False)}\n\n"
+        return f"data: {data}\n\n"
     
     def role_selected_sse(self, role_id, role_name):
         """生成角色选择SSE事件"""

@@ -54,6 +54,7 @@ async def chat_stream(
         event_generator(),
         media_type="text/event-stream",
         headers={
+            "Content-Type": "text/event-stream; charset=utf-8",
             "Cache-Control": "no-cache",
             "Connection": "keep-alive",
             "X-Accel-Buffering": "no"  # 针对Nginx的缓冲设置
