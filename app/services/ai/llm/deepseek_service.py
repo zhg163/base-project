@@ -147,8 +147,8 @@ class DeepseekService(BaseLLMService):
         messages = ModelAdapter.build_messages(message, system_prompt, history)
         
         if history:
-            logger.info(f"历史消息示例: {history[:2]}")
-            logger.info(f"构建后的完整消息列表: {messages}")
+            logger.info(f"历史消息示例: {history[:1]}")
+            #logger.info(f"构建后的完整消息列表: {messages}")
 
         # 构建参数
         params = {

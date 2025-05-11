@@ -5,6 +5,7 @@ from app.services.storage.mongo_repository import MongoRepository
 from app.api.deps import get_role_repository
 from app.models.schemas.role import RoleCreate, RoleResponse, RoleUpdate
 from app.utils.logging import logger
+from pydantic import BaseModel
 
 router = APIRouter()
 

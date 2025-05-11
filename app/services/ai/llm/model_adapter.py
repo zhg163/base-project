@@ -13,13 +13,40 @@ class ModelAdapter:
         **kwargs
     ) -> Dict[str, Any]:
         """将统一参数转换为DeepSeek API格式"""
-        # DeepSeek特定的参数处理
-        return {
-            "messages": ModelAdapter.build_messages(message, system_prompt),
+        # 获取内容分类信息
+        content_classification = kwargs.get("content_classification")
+        function_call_params = kwargs.get("function_call_params", {})
+        if function_call_params:
+            content_classification = function_call_params.get("content_classification", content_classification)
+        
+        # 根据内容分类调整系统提示
+        if content_classification:
+            original_prompt = system_prompt
+            classification_code = content_classification.get("code", "0")
+            
+            # 添加简洁的分类标记到提示的开头
+            prefix = f"[内容分类:{classification_code}] "
+            if not system_prompt.startswith(prefix):
+                system_prompt = prefix + system_prompt
+        
+        # 构建消息格式
+        messages = []
+        if system_prompt:
+            messages.append({"role": "system", "content": system_prompt})
+        
+        messages.append({"role": "user", "content": message})
+        
+        # 构建API请求参数
+        params = {
+            "messages": messages,
             "temperature": kwargs.get("temperature", 0.7),
-            "max_tokens": kwargs.get("max_tokens"),
-            # 添加其他DeepSeek特定参数
         }
+        
+        # 处理最大token限制
+        if "max_tokens" in kwargs and kwargs["max_tokens"]:
+            params["max_tokens"] = kwargs["max_tokens"]
+        
+        return params
     
     @staticmethod
     def adapt_to_qianwen(
@@ -28,6 +55,22 @@ class ModelAdapter:
         **kwargs
     ) -> Dict[str, Any]:
         """将统一参数转换为千问API格式"""
+        # 同样处理内容分类
+        content_classification = kwargs.get("content_classification")
+        function_call_params = kwargs.get("function_call_params", {})
+        if function_call_params:
+            content_classification = function_call_params.get("content_classification", content_classification)
+        
+        # 千问模型可能需要不同的格式化方式
+        if content_classification:
+            # 针对千问的特殊处理
+            code = content_classification.get("code", "0")
+            level = content_classification.get("level", "合规内容")
+            
+            # 千问格式的分类标记
+            if not system_prompt.startswith(f"<分类:{code}>"):
+                system_prompt = f"<分类:{code}>{system_prompt}"
+        
         # 构建千问特定的参数
         messages = []
         if system_prompt:

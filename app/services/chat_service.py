@@ -99,6 +99,7 @@ class ChatService:
                                    system_prompt: Optional[str] = None,
                                    temperature: float = 0.7) -> AsyncGenerator[str, None]:
         """流式处理用户消息并返回AI回复"""
+        # 使用导入的全局logger替代ctx_logger
         # 在方法内部处理默认值
         model_type = os.getenv("DEFAULT_MODEL_TYPE", "deepseek")
 
@@ -137,7 +138,7 @@ class ChatService:
                         if selected_role.system_prompt:
                             system_prompt = selected_role.system_prompt
                             role_name = selected_role.role_name
-            
+                
             # 如果没有获取到system_prompt，使用默认的
             if not system_prompt:
                 system_prompt = PromptService().get_system_prompt(role_name)
@@ -147,10 +148,19 @@ class ChatService:
                 message=message,
                 system_prompt=system_prompt,
                 temperature=temperature,
-                history=None  # 步骤1不包含历史记录功能
+                history=None,  # 步骤1不包含历史记录功能
+                functions=[
+                    self.function_caller.get_function_spec("classify_content"),
+                    self.function_caller.get_function_spec("trigger_rag")
+                ] if self.function_caller else None,
+                function_call={"mode": "auto"},
+                filter_decision={
+                    "action": "0"
+                }
             ):
                 # 处理chunk
                 if isinstance(chunk, dict):
+                    logger.info(f"收到JSON响应: {json.dumps(chunk)}")
                     if 'content' in chunk:
                         # 获取当前完整文本
                         current_text = chunk['content']
@@ -206,6 +216,8 @@ class ChatService:
         with LogContext(session_id=session_id, user_id=user_id) as ctx_logger:
             request_id = f"{session_id}:{uuid.uuid4()}"
             content_buffer = ""  # 用于累积完整回复
+            filter_result = None  # 初始化为None
+            content_classification = None  # 初始化为None
             ctx_logger.info("进入chat_stream方法")
             try:
                 # 标记事件是否已发送，避免重复
@@ -243,14 +255,43 @@ class ChatService:
                 await self.memory_service.add_user_message(session_id, message, user_id)
                 
                 # 4. 内容过滤决策
-                if self.content_filter:
+                if self.function_caller:
                     try:
-                        filter_result = await self.content_filter.filter_content(message)
-                        if filter_result["decision"].action == "block":
-                            yield self.sse_formatter.format_sse({'event': 'error', 'message': '内容违反规定'})
+                        # 获取内容分类
+                        classification_result = await self.function_caller.call_function(
+                            "classify_content", 
+                            text=message,
+                            context=f"session_id: {session_id}"
+                        )
+                        
+                        # 记录分类结果
+                        ctx_logger.info(f"内容分类结果: {classification_result['code']} - {classification_result['level']}")
+
+                        # 根据分类结果决定操作
+                        if classification_result["code"] == "1":
+                            # 违规内容直接拒绝
+                            yield self.sse_formatter.format_sse({
+                                'event': 'error', 
+                                'message': f'内容违反规定: {classification_result["reason"]}'
+                            })
                             return
+                        
+                        # 将分类结果保存给后续使用
+                        content_classification = classification_result
                     except Exception as e:
-                        ctx_logger.warning(f"内容过滤失败，继续处理: {str(e)}")
+                        ctx_logger.warning(f"内容分类失败，继续处理: {str(e)}")
+                        content_classification = None
+                else:
+                    # 兼容原有内容过滤方式
+                    content_classification = None
+                    if self.content_filter:
+                        try:
+                            filter_result = await self.content_filter.filter_content(message)
+                            if filter_result["decision"].action == "block":
+                                yield self.sse_formatter.format_sse({'event': 'error', 'message': '内容违反规定'})
+                                return
+                        except Exception as e:
+                            ctx_logger.warning(f"内容过滤失败，继续处理: {str(e)}")
                 
                 # 5. 发送思考事件 
                 if show_thinking and not events_sent["thinking"]:
@@ -258,47 +299,129 @@ class ChatService:
                     yield self.sse_formatter.format_sse(thinking_event)
                     events_sent["thinking"] = True
                 
-                # 6. RAG决策和检索
-                rag_content = await self._get_rag_content(message) if self.rag_router else None
+                # 改为初始变量
+                rag_content = None  # 初始化为None
+                # 后续将通过函数调用由LLM主动触发
                 
-                # 7. 获取历史消息
+                # 6. 获取历史消息
                 history = await self.memory_service.build_message_history(session_id)
                 ctx_logger.info("将历史消息添加到LLM上下文", extra={"data": {"message_count": len(history)}})
                 
-                # 8. 确定使用哪个模型
+                # 7. 确定使用哪个模型
                 if not model_type:
                     model_type = os.getenv("DEFAULT_MODEL_TYPE", "deepseek")
                 
                 # 获取LLM服务
                 llm_service = LLMFactory().get_llm_service(model_type)
                 
-                # 9. 构建系统提示词
+                # 8. 构建系统提示词
                 system_prompt = None
                 if selected_role and selected_role.system_prompt:
                     system_prompt = selected_role.system_prompt
                 else:
                     system_prompt = PromptService().get_system_prompt()
                 
-                # 添加RAG内容到提示词
-                if rag_content:
-                    # 将检索到的知识融入提示词
-                    system_prompt = self._enrich_prompt_with_rag(system_prompt, rag_content)
+                # 9.添加RAG内容到提示词
+                # if rag_content:
+                #     system_prompt = self._enrich_prompt_with_rag(system_prompt, rag_content)
+                
+                # 在调用 llm_service.generate_stream 之前添加分类信息到系统提示词
+                if content_classification:
+                    response_guidance = f"""
+内容分类: {content_classification['code']} ({content_classification['level']})
+回复策略: {content_classification['response_strategy']}
+
+请遵循以下指导处理用户消息:
+- 对于"0"类合规内容: 直接全面回答
+- 对于"00"类轻微敏感内容: 适当回应情绪，提供帮助
+- 对于"01"类中度敏感内容: 保持专业，不执行违反政策的要求
+- 对于"10"类创意敏感内容: 在虚构框架内回应，明确区分现实
+- 对于"11"类危机内容: 表达关心，提供支持资源信息
+- 对于"101"类专业敏感内容: 提供基础信息但说明专业建议的限制
+
+用户消息已被分类为: {content_classification['level']}，请据此调整回复。
+"""
+                    system_prompt += response_guidance
+                
+                # 先定义函数变量
+                functions = [
+                    self.function_caller.get_function_spec("classify_content"),
+                    self.function_caller.get_function_spec("trigger_rag")
+                ] if self.function_caller else None
+
+                # 然后记录日志
+                ctx_logger.info(f"函数调用设置: {json.dumps([f.get('name') for f in functions]) if functions else 'None'}")
                 
                 # 10. 流式生成并发送
                 if not hasattr(self, 'sent_content_cache'):
                     self.sent_content_cache = {}
                 self.sent_content_cache[request_id] = ""
                 
+                # 1. 检查是否包含强制RAG调用的特定字符
+                force_rag = False
+                rag_content = None
+                
+                # 支持多种强制调用RAG的触发方式
+                rag_triggers = ["/rag", "!search", "#查询"]
+                
+                # 检测是否包含触发字符
+                for trigger in rag_triggers:
+                    if message.strip().startswith(trigger):
+                        force_rag = True
+                        # 去除触发字符，保留查询内容
+                        clean_message = message.replace(trigger, "", 1).strip()
+                        ctx_logger.info(f"检测到强制RAG触发: {trigger}")
+                        
+                        # 2. 直接调用RAG服务
+                        try:
+                            ctx_logger.info(f"开始RAG检索: {clean_message}")
+                            rag_content = await self.rag_service.retrieve(clean_message)
+                            ctx_logger.info(f"RAG检索结果: {rag_content[:100]}...")
+                            if rag_content:
+                                ctx_logger.info(f"强制RAG检索成功，获取内容长度: {len(rag_content)}")
+                                # 通知前端RAG检索成功
+                                yield self.sse_formatter.format_sse({
+                                    'event': 'rag_retrieved',
+                                    'message': '知识库检索成功'
+                                })
+                                # 更新原始消息，移除触发字符
+                                message = clean_message
+                            else:
+                                ctx_logger.warning("RAG检索未返回结果")
+                                yield self.sse_formatter.format_sse({
+                                    'event': 'rag_retrieved',
+                                    'message': '知识库检索未找到相关内容'
+                                })
+                        except Exception as e:
+                            ctx_logger.error(f"强制RAG检索失败: {str(e)}")
+                            yield self.sse_formatter.format_sse({
+                                'event': 'error',
+                                'message': '知识库检索失败'
+                            })
+                        break
+                
+                # 继续原有的处理流程
+                # 但如果已经强制RAG了，则使用检索到的rag_content
+                
                 async for chunk in llm_service.generate_stream(
                     message=message,
                     system_prompt=system_prompt,
                     temperature=0.7,
                     history=history,  # 包含历史记录
-                    rag_content=rag_content,
-                    filter_decision=filter_result["decision"] if filter_result else None
+                    rag_content=rag_content,  # 初始为None
+                    # 提供两个函数给模型选择使用
+                    functions=functions,  # 使用已定义的变量
+                    function_call={"mode": "auto"},
+                    function_call_params={
+                        "content_classification": content_classification
+                    } if content_classification else None,
+                    filter_decision={
+                        "action": content_classification["code"] if content_classification else "0"
+                    } if content_classification else (filter_result.get("decision") if filter_result else None)
                 ):
                     # 处理情绪和动作
                     if isinstance(chunk, dict):
+                        #ctx_logger.info(f"收到JSON响应: {json.dumps(chunk)}")
                         # 从字典中直接获取emotion和action (如果API直接返回)
                         emotion = chunk.get('emotion')
                         action = chunk.get('action')
@@ -332,10 +455,43 @@ class ChatService:
                             })
                             last_action = action
                         
+                        # 检查是否为函数调用响应
+                        if 'function_call' in chunk:
+                            function_call = chunk['function_call']
+                            function_name = function_call['name']
+                            function_args = json.loads(function_call['arguments'])
+                            
+                            # 执行函数调用
+                            function_result = await self.function_caller.call_function(
+                                function_name, 
+                                **function_args
+                            )
+                            
+                            # 处理不同类型的函数调用结果
+                            if function_name == "trigger_rag" and function_result.get("retrieved"):
+                                # 获取到RAG结果后，将其添加到系统提示中
+                                rag_content = function_result.get("data")
+                                if rag_content:
+                                    # 更新系统提示词
+                                    system_prompt = self._enrich_prompt_with_rag(system_prompt, rag_content)
+                                    
+                                    # 发送提示词更新事件
+                                    yield self.sse_formatter.format_sse({
+                                        'event': 'system_prompt_updated',
+                                        'prompt': system_prompt
+                                    })
+                            
+                            # 将函数结果发送到前端
+                            yield self.sse_formatter.format_sse({
+                                'event': 'function_result',
+                                'name': function_name,
+                                'result': function_result
+                            })
+                        
                         # 处理内容
                         if 'content' in chunk:
                             current_text = chunk['content']
-                            #ctx_logger.info(f"--------------------------------current_text: {current_text}，content_buffer: {content_buffer} ，current_text.startswith(content_buffer): {current_text.startswith(content_buffer)}")
+                            #ctx_logger.info(f"current_text: {current_text}，content_buffer: {content_buffer} ，current_text.startswith(content_buffer): {current_text.startswith(content_buffer)}")
                             # 自适应累积逻辑
                             # 检查当前文本是否已包含之前累积的内容
                             if content_buffer and current_text.startswith(content_buffer):
@@ -344,7 +500,7 @@ class ChatService:
                             else:
                                 # Deepseek模式: 模型没有累积，需要手动累积
                                 content_buffer += current_text
-                                #ctx_logger.info(f"--------------------------------content_buffer: {content_buffer}")
+                                #ctx_logger.info(f"content_buffer: {content_buffer}")
                             self.sent_content_cache[request_id] = content_buffer
                             
                             response_data = {
@@ -357,7 +513,7 @@ class ChatService:
                     # 字符串处理
                     elif isinstance(chunk, str):
                         current_text = chunk
-                        ctx_logger.info(f"--------------------------------current_text: {current_text}，content_buffer: {content_buffer} ，current_text.startswith(content_buffer): {current_text.startswith(content_buffer)}")
+                        #ctx_logger.info(f"current_text: {current_text}，content_buffer: {content_buffer} ，current_text.startswith(content_buffer): {current_text.startswith(content_buffer)}")
                         # 自适应累积逻辑
                         # 检查当前文本是否已包含之前累积的内容
                         if content_buffer and current_text.startswith(content_buffer):
@@ -366,7 +522,7 @@ class ChatService:
                         else:
                             # Deepseek模式: 模型没有累积，需要手动累积
                             content_buffer += current_text
-                            ctx_logger.info(f"--------------------------------content_buffer: {content_buffer}")
+                            #ctx_logger.info(f"content_buffer: {content_buffer}")
                         
                         # 更新缓存
                         self.sent_content_cache[request_id] = content_buffer

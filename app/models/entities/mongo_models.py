@@ -1,8 +1,28 @@
-from datetime import datetime
 from typing import Dict, List, Optional, Any
-from pydantic import Field
-
+from pydantic import Field, BaseModel
 from app.models.entities.mongo_base import MongoModel
+from datetime import datetime
+
+
+class Role(MongoModel):
+    """角色数据模型"""
+    
+    _collection_name = "roles"
+    
+    name: str = Field(..., description="角色名称")
+    description: Optional[str] = Field(None, description="角色描述")
+    personality: Optional[str] = Field(None, description="角色性格")
+    speech_style: Optional[str] = Field(None, description="角色语言风格")
+    keywords: Optional[List[str]] = Field(default_factory=list, description="角色关键词")
+    temperature: Optional[float] = Field(0.7, description="生成温度")
+    prompt_templates: Optional[List[str]] = Field(default_factory=list, description="提示词模板")
+    system_prompt: Optional[str] = Field(None, description="系统提示词")
+    is_active: Optional[bool] = Field(True, description="是否激活")
+    # 新增字段
+    faction: Optional[str] = Field(None, description="角色阵营")
+    job: Optional[str] = Field(None, description="角色职业类别")
+    
+
 
 class User(MongoModel):
     """用户模型"""

@@ -11,6 +11,8 @@ class RoleBase(BaseModel):
     temperature: Optional[float] = Field(None, description="生成温度")
     prompt_templates: Optional[List[str]] = Field(None, description="提示词模板")
     system_prompt: Optional[str] = Field(None, description="系统提示词")
+    faction: Optional[str] = Field(None, description="角色阵营")
+    job: Optional[str] = Field(None, description="角色职业类别")
     is_active: Optional[bool] = Field(None, description="是否激活")
 
 class RoleCreate(RoleBase):
