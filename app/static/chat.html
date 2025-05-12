@@ -865,6 +865,87 @@
             color: #388e3c;
             display: inline-block;
         }
+
+        /* 添加到style标签中 */
+        .thinking-content-box {
+            font-size: 14px; /* 比正文小2号 */
+            color: #888; /* 浅灰色 */
+            background-color: #f9f9f9;
+            padding: 10px 15px;
+            margin: 10px 0;
+            border-radius: 8px;
+            border-left: 3px solid #ffc107;
+            line-height: 1.5;
+            white-space: pre-wrap;
+            overflow-wrap: break-word;
+            font-family: monospace;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .thinking-completed {
+            border-left-color: #28a745;
+        }
+
+        .typing-text {
+            white-space: pre-wrap;
+        }
+
+        /* 添加到style标签中 */
+        .thinking-box-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 12px;
+            background-color: #f0f2f5;
+            border-radius: 8px 8px 0 0;
+            border-left: 3px solid #ffc107;
+            margin-top: 10px;
+            font-size: 14px;
+            color: #666;
+            cursor: pointer;
+        }
+
+        .thinking-box-toggle {
+            background: none;
+            border: none;
+            cursor: pointer;
+            color: #777;
+            width: 24px;
+            height: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+        }
+
+        .thinking-box-toggle:hover {
+            background-color: rgba(0, 0, 0, 0.05);
+        }
+
+        .thinking-content-box {
+            font-size: 14px; /* 比正文小2号 */
+            color: #888; /* 浅灰色 */
+            background-color: #f9f9f9;
+            padding: 10px 15px;
+            margin: 0 0 10px 0;
+            border-radius: 0 0 8px 8px;
+            border-left: 3px solid #ffc107;
+            line-height: 1.5;
+            white-space: pre-wrap;
+            overflow-wrap: break-word;
+            font-family: monospace;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .thinking-completed {
+            border-left-color: #28a745;
+        }
+
+        .thinking-content-wrapper {
+            display: block;
+        }
     </style>
 </head>
 
@@ -2269,6 +2350,93 @@
                         previousFullMessage = fullMessage;
                     }
                 }
+
+                // 在processEvent函数中添加对thinking_content事件的处理
+                if (data.event === "thinking_content") {
+                    // 获取或创建思考内容容器
+                    let thinkingBox = document.getElementById('thinkingContentBox');
+                    
+                    // 如果容器不存在，则创建一个
+                    if (!thinkingBox) {
+                        // 获取响应容器
+                        const responseContainer = document.getElementById('responseContainer');
+                        if (!responseContainer) return;
+                        
+                        // 查找事件标签区域
+                        const eventTags = responseContainer.querySelector('.event-tags');
+                        if (!eventTags) return;
+                        
+                        // 创建思考内容容器头部
+                        const thinkingHeader = document.createElement('div');
+                        thinkingHeader.className = 'thinking-box-header';
+                        thinkingHeader.innerHTML = '<span>思考中...</span><button class="thinking-box-toggle"><i class="fas fa-chevron-up"></i></button>';
+                        
+                        // 创建思考内容容器
+                        thinkingBox = document.createElement('div');
+                        thinkingBox.id = 'thinkingContentBox';
+                        thinkingBox.className = 'thinking-content-box';
+                        
+                        // 创建思考内容区域
+                        const thinkingContent = document.createElement('div');
+                        thinkingContent.className = 'thinking-content-wrapper';
+                        thinkingBox.appendChild(thinkingContent);
+                        
+                        // 添加点击事件处理
+                        thinkingHeader.querySelector('.thinking-box-toggle').addEventListener('click', () => {
+                            toggleThinkingBox(thinkingBox);
+                        });
+                        
+                        // 将标题和容器添加到响应容器
+                        responseContainer.insertBefore(thinkingHeader, responseContainer.querySelector('.message-box'));
+                        responseContainer.insertBefore(thinkingBox, responseContainer.querySelector('.message-box'));
+                    }
+                    
+                    // 获取内容包装区域
+                    const contentWrapper = thinkingBox.querySelector('.thinking-content-wrapper');
+                    if (!contentWrapper) return;
+                    
+                    // 添加内容到容器
+                    if (data.content) {
+                        const textSpan = document.createElement('span');
+                        textSpan.className = 'typing-text';
+                        textSpan.textContent = '';
+                        contentWrapper.appendChild(textSpan);
+                        
+                        // 打字机效果显示内容
+                        let i = 0;
+                        const typing = setInterval(() => {
+                            if (i < data.content.length) {
+                                textSpan.textContent += data.content.charAt(i);
+                                i++;
+                                // 滚动到最新内容
+                                chatContainer.scrollTop = chatContainer.scrollHeight;
+                            } else {
+                                clearInterval(typing);
+                            }
+                        }, 15);
+                    }
+                    return;
+                }
+
+                // 处理思考完成事件 - 自动折叠
+                if (data.event === "thinking_completed" || data.event === "rag_thinking_completed") {
+                    const thinkingBox = document.getElementById('thinkingContentBox');
+                    if (thinkingBox) {
+                        thinkingBox.classList.add('thinking-completed');
+                        
+                        // 找到标题并更新文本
+                        const header = document.querySelector('.thinking-box-header span');
+                        if (header) {
+                            header.textContent = '思考完成 (点击展开/折叠)';
+                        }
+                        
+                        // 自动折叠内容 - 延迟1秒执行，让用户有时间看到完成状态
+                        setTimeout(() => {
+                            toggleThinkingBox(thinkingBox, true); // 强制折叠
+                        }, 1000);
+                    }
+                    return;
+                }
             }
 
             // 新的打字效果函数 - 更高效且避免重复
@@ -2301,6 +2469,31 @@
                 
                 // 开始打字
                 typeNextChar();
+            }
+
+            // 添加到script标签末尾 - 切换思考框显示/隐藏的函数
+            function toggleThinkingBox(thinkingBox, forceCollapse = false) {
+                const contentWrapper = thinkingBox.querySelector('.thinking-content-wrapper');
+                const toggleBtn = document.querySelector('.thinking-box-toggle i');
+                
+                if (!contentWrapper || !toggleBtn) return;
+                
+                // 检查当前状态
+                const isExpanded = contentWrapper.style.display !== 'none';
+                
+                // 如果强制折叠或当前是展开状态
+                if (forceCollapse || isExpanded) {
+                    // 折叠内容
+                    contentWrapper.style.display = 'none';
+                    toggleBtn.className = 'fas fa-chevron-down';
+                } else {
+                    // 展开内容
+                    contentWrapper.style.display = 'block';
+                    toggleBtn.className = 'fas fa-chevron-up';
+                }
+                
+                // 滚动到最新位置
+                chatContainer.scrollTop = chatContainer.scrollHeight;
             }
         });
 

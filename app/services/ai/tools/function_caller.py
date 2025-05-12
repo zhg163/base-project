@@ -32,7 +32,7 @@ class FunctionCaller:
             ),
             "trigger_rag": FunctionDefinition(
                 name="trigger_rag",
-                description="触发知识检索",
+                description="当需要查询知识库获取信息时调用此函数。适用于需要事实性信息、定义解释或专业知识的场景。",
                 parameters={
                     "type": "object",
                     "properties": {

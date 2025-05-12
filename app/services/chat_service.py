@@ -352,40 +352,66 @@ class ChatService:
                 # 然后记录日志
                 ctx_logger.info(f"函数调用设置: {json.dumps([f.get('name') for f in functions]) if functions else 'None'}")
                 
-                # 10. 流式生成并发送
-                if not hasattr(self, 'sent_content_cache'):
-                    self.sent_content_cache = {}
-                self.sent_content_cache[request_id] = ""
-                
-                # 1. 检查是否包含强制RAG调用的特定字符
+                # 处理RAG逻辑 - 用户输入处理阶段
                 force_rag = False
                 rag_content = None
-                
-                # 支持多种强制调用RAG的触发方式
+                clean_message = message
+
+                # 1. 用户强制触发RAG检测
                 rag_triggers = ["/rag", "!search", "#查询"]
-                
-                # 检测是否包含触发字符
+                ctx_logger.info(f"检测到强制RAG触发条件: {rag_triggers}")
+
                 for trigger in rag_triggers:
                     if message.strip().startswith(trigger):
                         force_rag = True
-                        # 去除触发字符，保留查询内容
                         clean_message = message.replace(trigger, "", 1).strip()
                         ctx_logger.info(f"检测到强制RAG触发: {trigger}")
                         
-                        # 2. 直接调用RAG服务
+                        # 直接调用RAG服务
                         try:
-                            ctx_logger.info(f"开始RAG检索: {clean_message}")
-                            rag_content = await self.rag_service.retrieve(clean_message)
-                            ctx_logger.info(f"RAG检索结果: {rag_content[:100]}...")
-                            if rag_content:
-                                ctx_logger.info(f"强制RAG检索成功，获取内容长度: {len(rag_content)}")
-                                # 通知前端RAG检索成功
+                            ctx_logger.info(f"开始RAG流式检索: {clean_message}")
+                            yield self.sse_formatter.format_sse({
+                                'event': 'rag_retrieved',
+                                'message': '知识库检索开始'
+                            })
+                            
+                            # 累积RAG内容
+                            full_rag_content = ""
+                            
+                            # 流式获取RAG内容
+                            async for rag_chunk in self.rag_service.retrieve_stream(clean_message):
+                                if rag_chunk.get("event") == "error":
+                                    ctx_logger.error(f"RAG检索错误: {rag_chunk.get('message')}")
+                                    yield self.sse_formatter.format_sse({
+                                        'event': 'error',
+                                        'message': f"知识库检索失败: {rag_chunk.get('message')}"
+                                    })
+                                    break
+                                    
+                                # 获取增量内容
+                                content = rag_chunk.get("content", "")
+                                if content:
+                                    # 更新累积内容
+                                    full_rag_content = rag_chunk.get("full_content", full_rag_content + content)
+                                    
+                                    # 发送思考内容事件
+                                    yield self.sse_formatter.format_sse({
+                                        'event': 'thinking_content',
+                                        'content': content,
+                                        'type': 'rag_knowledge'
+                                    })
+                            
+                            # 检索完成        
+                            if full_rag_content:
+                                ctx_logger.info(f"RAG流式检索完成，获取内容长度: {len(full_rag_content)}")
                                 yield self.sse_formatter.format_sse({
-                                    'event': 'rag_retrieved',
-                                    'message': '知识库检索成功'
+                                    'event': 'rag_thinking_completed',
+                                    'message': '知识库检索完成'
                                 })
-                                # 更新原始消息，移除触发字符
-                                message = clean_message
+                                
+                                # 更新系统提示
+                                system_prompt = self._enrich_prompt_with_rag(system_prompt, full_rag_content)
+                                message = clean_message  # 更新消息，移除触发前缀
                             else:
                                 ctx_logger.warning("RAG检索未返回结果")
                                 yield self.sse_formatter.format_sse({
@@ -400,17 +426,20 @@ class ChatService:
                             })
                         break
                 
-                # 继续原有的处理流程
-                # 但如果已经强制RAG了，则使用检索到的rag_content
+                # 思考结束，开始生成最终回复
+                yield self.sse_formatter.format_sse({
+                    'event': 'thinking_completed',
+                    'message': '思考完成，正在生成回复...'
+                })
                 
+                # 流式生成并发送 - 大模型可能通过function_call调用RAG
                 async for chunk in llm_service.generate_stream(
                     message=message,
                     system_prompt=system_prompt,
                     temperature=0.7,
-                    history=history,  # 包含历史记录
-                    rag_content=rag_content,  # 初始为None
-                    # 提供两个函数给模型选择使用
-                    functions=functions,  # 使用已定义的变量
+                    history=history,
+                    rag_content=rag_content,  # 传入已获得的RAG内容(如果有)
+                    functions=functions,  # 大模型可通过这些函数决定是否触发RAG
                     function_call={"mode": "auto"},
                     function_call_params={
                         "content_classification": content_classification
@@ -636,7 +665,7 @@ class ChatService:
         try:
             rag_decision = await self.rag_router.should_trigger_rag(message)
             if rag_decision.should_trigger and hasattr(self, 'rag_service') and self.rag_service:
-                return await self.rag_service.retrieve(message)
+                return await self.rag_service.retrieve_stream(message)
         except Exception as e:
             logger.warning(f"RAG路由失败: {str(e)}")
         return None
