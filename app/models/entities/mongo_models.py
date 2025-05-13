@@ -18,9 +18,10 @@ class Role(MongoModel):
     prompt_templates: Optional[List[str]] = Field(default_factory=list, description="提示词模板")
     system_prompt: Optional[str] = Field(None, description="系统提示词")
     is_active: Optional[bool] = Field(True, description="是否激活")
-    # 新增字段
+    # 新增字段，改为可选
     faction: Optional[str] = Field(None, description="角色阵营")
     job: Optional[str] = Field(None, description="角色职业类别")
+    game_name: Optional[str] = Field(default="默认游戏", description="游戏名称")
     
 
 
@@ -80,6 +81,10 @@ class Role(MongoModel):
     prompt_templates: Optional[List[str]] = Field(default_factory=list, description="提示词模板")
     system_prompt: Optional[str] = Field(None, description="系统提示词")
     is_active: Optional[bool] = Field(True, description="是否激活")
+    # 新增字段
+    faction: Optional[str] = Field(None, description="角色阵营")
+    job: Optional[str] = Field(None, description="角色职业类别")
+    game_name: Optional[str] = Field(None, description="游戏名称")
 
 class RoleReference(MongoModel):
     """角色引用数据模型"""

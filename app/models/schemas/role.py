@@ -14,6 +14,7 @@ class RoleBase(BaseModel):
     faction: Optional[str] = Field(None, description="角色阵营")
     job: Optional[str] = Field(None, description="角色职业类别")
     is_active: Optional[bool] = Field(None, description="是否激活")
+    game_name: Optional[str] = Field(default="默认游戏", description="游戏名称")
 
 class RoleCreate(RoleBase):
     """创建角色的数据模型"""

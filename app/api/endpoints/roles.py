@@ -11,10 +11,14 @@ router = APIRouter()
 
 @router.get("", response_model=List[RoleResponse])
 async def get_all_roles(
-    role_repo: MongoRepository = Depends(get_role_repository)
+    role_repo: MongoRepository = Depends(get_role_repository),
+    game_name: Optional[str] = None
 ):
     """获取所有角色"""
-    roles = await role_repo.find_many({})
+    if game_name:
+        roles = await role_repo.find_many({"game_name": game_name})
+    else:
+        roles = await role_repo.find_many({})
     return roles
 
 @router.get("/{role_id}", response_model=RoleResponse)

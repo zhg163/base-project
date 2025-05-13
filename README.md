@@ -41,7 +41,8 @@ pyenv shell 3.11.6
 # 创建虚拟环境
 python -m venv venv
 
-pyenv virtualenv 3.11.6 venv
+pyenv virtualenv 3.11.6 .venv
+
 pyenv activate venv
 
 # 激活虚拟环境
@@ -68,3 +69,11 @@ pip freeze > complete_requirements.txt
 
 
 nohup uvicorn main:app --reload --host 0.0.0.0 --port 8001
+
+
+
+
+
+apt update
+apt install -y pkg-config libicu-dev
+
