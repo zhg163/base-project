@@ -296,6 +296,12 @@ class MongoService:
             # 如果解析失败，返回无法解析的提示
             return "[uri-with-credentials]"
 
+    def delete_many(self, collection_name: str, query: Dict) -> int:
+        """删除多个文档，返回删除的文档数量"""
+        collection = self.db[collection_name]
+        result = collection.delete_many(query)
+        return result.deleted_count
+
 def get_mongo_service():
     """
     获取MongoDB服务实例

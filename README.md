@@ -77,3 +77,117 @@ nohup uvicorn main:app --reload --host 0.0.0.0 --port 8001
 apt update
 apt install -y pkg-config libicu-dev
 
+
+
+
+
+
+
+### **1. 检查网络连通性**
+#### 命令：
+```bash
+ping -c 4 github.com
+```
+- **若成功**：显示类似 `64 bytes from github.com (IP地址)`，说明网络连通。
+- **若失败**：提示 `Unknown host` 或超时，可能是 DNS 或网络问题。
+
+---
+
+### **2. 检查 DNS 解析**
+#### 命令：
+```bash
+nslookup github.com  # 或使用 dig github.com
+```
+- **正常情况**：返回 GitHub 的 IP 地址（如 `140.82.121.3`）。
+- **异常情况**：无响应或报错，说明 DNS 解析失败。
+
+#### 解决方案：
+- **更换 DNS 服务器**（如 Google 的 `8.8.8.8`）：
+  ```bash
+  echo "nameserver 8.8.8.8" | sudo tee /etc/resolv.conf > /dev/null
+  ```
+- 或在网络设置中手动配置 DNS。
+
+---
+
+### **3. 检查 Hosts 文件**
+#### 命令：
+```bash
+sudo cat /etc/hosts  # Linux/macOS
+```
+- 检查是否有异常条目（如将 `github.com` 指向错误 IP）。
+- **修复**：用 `sudo vim /etc/hosts` 删除错误行。
+
+---
+
+### **4. 检查代理设置**
+#### 查看 Git 是否配置了代理：
+```bash
+git config --global --get http.proxy
+```
+- **如果有代理**：尝试关闭代理：
+  ```bash
+  git config --global --unset http.proxy
+  ```
+- **若使用全局代理**（如 VPN/Clash），确保代理正常运行。
+
+---
+
+### **5. 检查防火墙/网络限制**
+- **临时关闭防火墙**（Linux）：
+  ```bash
+  sudo ufw disable  # Ubuntu
+  ```
+- **公司/校园网**：可能限制访问 GitHub，尝试切换网络（如手机热点）。
+
+---
+
+### **6. 检查 GitHub 服务状态**
+- 访问 [GitHub Status](https://www.githubstatus.com/) 确认服务正常。
+- 尝试浏览器打开 `https://github.com`，若失败则可能是网络问题。
+
+---
+
+### **7. 检查 SSL 证书（可选）**
+#### 命令：
+```bash
+curl -vI https://github.com
+```
+- 若报错 `SSL certificate problem`，尝试更新 CA 证书：
+  ```bash
+  sudo apt-get update && sudo apt-get install ca-certificates  # Debian/Ubuntu
+  ```
+
+---
+
+### **8. 最终验证**
+修复后，再次测试：
+```bash
+git pull
+```
+或直接测试连接：
+```bash
+curl -v https://github.com
+```
+
+---
+
+### **总结命令**
+```bash
+# 1. 检查网络
+ping -c 4 github.com
+
+# 2. 检查 DNS
+nslookup github.com
+
+# 3. 检查 Hosts
+cat /etc/hosts
+
+# 4. 检查代理
+git config --global --get http.proxy
+
+# 5. 检查防火墙/网络限制
+curl -v https://github.com
+```
+
+根据结果逐步排查，通常可解决问题！

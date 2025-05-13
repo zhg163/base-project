@@ -204,4 +204,10 @@ class MongoRepository(Generic[T]):
         Returns:
             实体对象，如果不存在则返回None
         """
-        return await self.find_one({"session_id": session_id}) 
+        return await self.find_one({"session_id": session_id})
+    
+    async def delete_all(self):
+        """删除集合中的所有文档"""
+        import asyncio
+        result = await asyncio.to_thread(self.mongo.delete_many, self.collection_name, {})
+        return result 

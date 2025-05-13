@@ -65,6 +65,14 @@ async def update_role(
     updated_role = await role_repo.update(role)
     return updated_role
 
+@router.delete("/delete-all", response_model=Dict[str, int])
+async def delete_all_roles(
+    role_repo: MongoRepository = Depends(get_role_repository)
+):
+    """删除所有角色数据"""
+    deleted_count = await role_repo.delete_all()
+    return {"deleted_count": deleted_count}
+
 @router.delete("/{role_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_role(
     role_id: str,
