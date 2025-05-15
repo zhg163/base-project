@@ -168,6 +168,8 @@ class DeepseekService(BaseLLMService):
         ai_logger.log_prompt(prompt=message, role_id=kwargs.get('role_id'))
         start_time = time.time()
         
+        content_buffer = ""  # 添加内容缓冲区
+        
         try:
             async with httpx.AsyncClient() as client:
                 async with client.stream(
@@ -186,7 +188,19 @@ class DeepseekService(BaseLLMService):
                         if line.startswith("data:") and not line.startswith("data: [DONE]"):
                             chunk = json.loads(line[5:])
                             if chunk["choices"][0]["delta"].get("content"):
-                                yield {"content": chunk["choices"][0]["delta"]["content"]}
+                                content = chunk["choices"][0]["delta"]["content"]
+                                content_buffer += content  # 累积内容
+                                
+                                # 提取情绪和动作
+                                emotion = self.extract_emotion(content_buffer)
+                                action = self.extract_action(content_buffer)
+                                
+                                # 返回包含情绪和动作的响应
+                                yield {
+                                    "content": content,
+                                    "emotion": emotion,
+                                    "action": action
+                                }
         except Exception as e:
             logger.exception(f"DeepSeek流式API调用异常: {str(e)}")
             yield {

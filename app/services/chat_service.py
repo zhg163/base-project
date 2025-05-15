@@ -325,6 +325,25 @@ class ChatService:
                 else:
                     system_prompt = PromptService().get_system_prompt()
                 
+                # 在这里添加情绪约束
+                if selected_role:
+                    # 获取角色的meta数据
+                    role_meta = getattr(selected_role, 'metadata', None)
+                    if role_meta and 'emotions' in role_meta:
+                        # 有明确定义的情绪列表，使用这些情绪
+                        valid_emotions = list(role_meta.get('emotions', {}).keys())
+                    else:
+                        # 默认8种情绪
+                        valid_emotions = ["信任", "喜悦", "期待", "悲伤", "恐惧", "惊讶", "愤怒", "厌恶"]
+                    
+                    if valid_emotions:
+                        emotion_constraint = f"""
+请注意：回复时请严格使用以下{len(valid_emotions)}种情绪之一：
+{', '.join(valid_emotions)}
+情绪格式为『情绪』，例如『信任』、『悲伤』等。
+"""
+                        system_prompt = system_prompt + emotion_constraint
+                
                 # 9.添加RAG内容到提示词
                 # if rag_content:
                 #     system_prompt = self._enrich_prompt_with_rag(system_prompt, rag_content)
