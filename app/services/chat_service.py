@@ -236,10 +236,18 @@ class ChatService:
                     yield self.sse_formatter.format_sse({'event': 'error', 'message': '会话不存在'})
                     return
                 
-                # 2. 选择角色
+                # 2. 获取历史消息
+                history = await self.memory_service.build_message_history(session_id)
+                ctx_logger.info("将历史消息添加到LLM上下文", extra={"data": {"message_count": len(history)}})
+                
+                # 3. 选择角色
                 selected_role = None
                 if session and session.roles:
-                    selected_role = await self.role_selector.select_most_relevant_role(message, session.roles)
+                    selected_role = await self.role_selector.select_most_relevant_role(
+                        message, 
+                        session.roles,
+                        chat_history=history  # 添加此参数传递历史消息
+                    )
                     
                     # 推送角色选择事件 (仅发送一次)
                     if selected_role and not events_sent["role_selected"]:
@@ -251,10 +259,10 @@ class ChatService:
                         yield self.sse_formatter.format_sse(selection_notice)
                         events_sent["role_selected"] = True
                 
-                # 3. 保存用户消息
+                # 4. 保存用户消息
                 await self.memory_service.add_user_message(session_id, message, user_id)
                 
-                # 4. 内容过滤决策
+                # 5. 内容过滤决策
                 if self.function_caller:
                     try:
                         # 获取内容分类
@@ -293,7 +301,7 @@ class ChatService:
                         except Exception as e:
                             ctx_logger.warning(f"内容过滤失败，继续处理: {str(e)}")
                 
-                # 5. 发送思考事件 
+                # 6. 发送思考事件 
                 if show_thinking and not events_sent["thinking"]:
                     thinking_event = {"event": "thinking", "message": "分析问题..."}
                     yield self.sse_formatter.format_sse(thinking_event)
@@ -302,10 +310,6 @@ class ChatService:
                 # 改为初始变量
                 rag_content = None  # 初始化为None
                 # 后续将通过函数调用由LLM主动触发
-                
-                # 6. 获取历史消息
-                history = await self.memory_service.build_message_history(session_id)
-                ctx_logger.info("将历史消息添加到LLM上下文", extra={"data": {"message_count": len(history)}})
                 
                 # 7. 确定使用哪个模型
                 if not model_type:

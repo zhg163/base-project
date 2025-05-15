@@ -10,18 +10,29 @@ class RoleSelector:
     def __init__(self, llm_service):
         self.llm_service = llm_service
         self.logger = logging.getLogger(__name__)
+        self.last_selected_role = None  # 添加记录上一次选择的角色
     
-    async def select_most_relevant_role(self, message: str, roles: List[RoleReference]) -> Optional[RoleReference]:
+    async def select_most_relevant_role(self, message: str, roles: List[RoleReference], 
+                                        chat_history: List[Dict] = None) -> Optional[RoleReference]:
         """评估消息与角色的相关性，选择最相关的角色"""
         if not roles:
             return None
             
         if len(roles) == 1:
             self.logger.info(f"只有一个角色可选，直接返回: {roles[0].role_name}")
+            self.last_selected_role = roles[0]
             return roles[0]
-            
+        
+        # 检查是否应该沿用上一次对话的角色
+        if self.last_selected_role and self._should_continue_with_last_role(message, chat_history):
+            # 确保上次的角色在当前可选角色中
+            for role in roles:
+                if str(role.role_id) == str(self.last_selected_role.role_id):
+                    self.logger.info(f"检测到对话连续性，沿用上一次的角色: {role.role_name}")
+                    return role
+        
         # 构建评估提示
-        evaluation_prompt = self._build_evaluation_prompt(message, roles)
+        evaluation_prompt = self._build_evaluation_prompt(message, roles, chat_history)
         
         try:
             # 使用LLM评估最相关角色
@@ -36,14 +47,38 @@ class RoleSelector:
             
             if selected_role:
                 self.logger.info(f"已选择角色: {selected_role.role_name} (ID: {selected_role.role_id})")
+                self.last_selected_role = selected_role  # 更新上一次选择的角色
                 return selected_role
             else:
                 self.logger.warning(f"无法解析所选角色，返回第一个: {roles[0].role_name}")
+                self.last_selected_role = roles[0]  # 更新上一次选择的角色
                 return roles[0]
                 
         except Exception as e:
             self.logger.error(f"角色选择失败: {str(e)}")
+            self.last_selected_role = roles[0]  # 更新上一次选择的角色
             return roles[0]  # 失败时返回第一个角色
+    
+    def _should_continue_with_last_role(self, message: str, chat_history: List[Dict] = None) -> bool:
+        """判断是否应该沿用上一次对话的角色"""
+        # 检查是否存在对话历史和上一次选择的角色
+        if not chat_history or not self.last_selected_role:
+            return False
+        
+        # 检查消息中是否包含代词"你"、"您"等指代上一个角色的词
+        pronoun_pattern = r'(你|您|你们|汝|尔|阁下)'
+        if re.search(pronoun_pattern, message):
+            return True
+            
+        # 检查是否是简短的后续问题如"为什么"、"怎么办"、"还有呢"等
+        follow_up_pattern = r'^(为什么|怎么办|然后呢|还有呢|继续|详细说说|那么|所以).{0,10}$'
+        if re.search(follow_up_pattern, message):
+            return True
+            
+        # 如果最近一次对话是与当前用户的，且时间间隔较短，增加连续性判断
+        # 这部分需要根据实际chat_history的结构来实现
+            
+        return False
     
     def _build_evaluation_prompt(self, message: str, roles: List[RoleReference], history=None) -> str:
         """构建评估提示"""
@@ -66,11 +101,21 @@ class RoleSelector:
         
         roles_text = "\n\n".join(role_descriptions)
         
+        # 添加对话历史上下文（如果有）
+        history_context = ""
+        if history and len(history) > 0:
+            last_messages = history[-3:]  # 获取最近的3条消息
+            history_context = "\n## 最近对话历史\n"
+            for msg in last_messages:
+                role = "用户" if msg.get("role") == "user" else "助手"
+                history_context += f"{role}: {msg.get('content', '')}\n"
+        
         prompt = f"""你是一个专业的角色选择系统。
 根据用户的消息和可用角色列表，选择最适合回答的角色。
 
 ## 用户消息
 {message}
+{history_context}
 
 ## 可用角色
 {roles_text}
@@ -79,6 +124,8 @@ class RoleSelector:
 1. 角色的专业领域与用户问题的相关性
 2. 角色设定中的专业知识与用户问题的匹配度
 3. 角色性格是否适合回答该类问题
+4. 对话连续性：如果用户使用"你"等代词指代上一个对话的角色，应该沿用该角色
+5. 如果用户问题是对上一个回答的后续提问，应该使用相同角色回答
 
 ## 输出格式
 只返回所选角色的ID，无需其他说明。例如: 68171c58e39d5bcf148c742a
