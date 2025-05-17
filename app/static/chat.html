@@ -1095,7 +1095,6 @@
             let pendingText = '';
 
             // 添加全局变量用于存储思考内容
-            let thinkingContents = [];
             let isThinkingCompleted = false;
             // 全局的状态变量，确保在每次新消息开始时重置
             let isResponseStarted = false; // This is fine at global scope if reset correctly per message cycle
@@ -2301,7 +2300,6 @@
                          emotionTag.style.display = 'none'; // Hide if no emotion
                     }
                     
-                    thinkingContents = [];
                     isThinkingCompleted = false;
                     isResponseStarted = false; 
                     previousFullMessage = ''; 
@@ -2343,7 +2341,6 @@
                 
                 // 处理思考事件
                 if (data.event === "thinking") {
-                    thinkingContents = [];
                     isThinkingCompleted = false;
 
                     if (!currentActiveResponseContainer) { 
@@ -2365,11 +2362,12 @@
                 // 处理思考内容
                 if (data.event === "thinking_content") {
                     if (!currentActiveResponseContainer) { console.error("thinking_content: currentActiveResponseContainer is null!"); return; }
-                    thinkingContents.push({ content: data.content, type: data.type }); // Keep populating for now
+                    // thinkingContents.push({ content: data.content, type: data.type }); // REMOVED - No longer populating this array
 
                     let thinkingHeaderContainer = currentActiveResponseContainer.querySelector('.thinking-box-header');
                     let thinkingBox = currentActiveResponseContainer.querySelector('.thinking-content-box');
                     let thinkingContentWrapper;
+                    let thinkingAggregatorSpan;
 
                     // Ensure header exists
                     if (!thinkingHeaderContainer) {
@@ -2397,10 +2395,21 @@
                         thinkingContentWrapper.className = 'thinking-content-wrapper';
                         thinkingBox.appendChild(thinkingContentWrapper);
 
+                        // Create the single aggregator span here when the box is first created
+                        thinkingAggregatorSpan = document.createElement('span');
+                        thinkingAggregatorSpan.className = 'thinking-text-aggregator typing-text'; // Apply base styles
+                        thinkingContentWrapper.appendChild(thinkingAggregatorSpan);
+
                         if (thinkingHeaderContainer.nextSibling) currentActiveResponseContainer.insertBefore(thinkingBox, thinkingHeaderContainer.nextSibling);
                         else currentActiveResponseContainer.appendChild(thinkingBox);
                     } else {
                         thinkingContentWrapper = thinkingBox.querySelector('.thinking-content-wrapper');
+                        thinkingAggregatorSpan = thinkingContentWrapper.querySelector('.thinking-text-aggregator');
+                        if (!thinkingAggregatorSpan) { // Should exist if box exists, but as a fallback
+                            thinkingAggregatorSpan = document.createElement('span');
+                            thinkingAggregatorSpan.className = 'thinking-text-aggregator typing-text';
+                            thinkingContentWrapper.appendChild(thinkingAggregatorSpan);
+                        }
                     }
 
                     // Ensure box and wrapper are visible when new content arrives
@@ -2409,15 +2418,17 @@
                     const toggleIcon = thinkingHeaderContainer.querySelector('.thinking-box-toggle i');
                     if (toggleIcon) toggleIcon.className = 'fas fa-chevron-up'; // Set to expanded
 
-                    // Create new span for this piece of thinking content
-                    const textSpan = document.createElement('span');
-                    textSpan.className = data.type === "rag_knowledge" ? 'rag-knowledge typing-text' : 'typing-text';
-                    if(thinkingContentWrapper) thinkingContentWrapper.appendChild(textSpan);
+                    // Apply RAG knowledge style to the aggregator if any part is RAG
+                    // This makes the entire thinking block blue if it contains RAG.
+                    // If mixed styling is needed *within* the block, server would need to send pre-formatted HTML
+                    // or more complex client-side logic would be required.
+                    if (data.type === "rag_knowledge" && !thinkingAggregatorSpan.classList.contains('rag-knowledge')) {
+                        thinkingAggregatorSpan.classList.add('rag-knowledge');
+                    }
                     
-                    displayWithTypewriter(textSpan, data.content, true); // True for thinking text
+                    displayWithTypewriter(thinkingAggregatorSpan, data.content, true); 
 
-                    if(thinkingContentWrapper) thinkingContentWrapper.appendChild(document.createElement('br'));
-
+                    // if(thinkingContentWrapper) thinkingContentWrapper.appendChild(document.createElement('br')); // REMOVED - No automatic <br>
                     if (chatContainer) chatContainer.scrollTop = chatContainer.scrollHeight;
                     return;
                 }
@@ -2530,7 +2541,8 @@
             
                 if (isThinkingText) { 
                     textToTypeThisChunk_Cleaned = fullTextPortion; // Thinking text is typed as is
-                    element.textContent = ''; // Each thinking span starts fresh for its own content
+                    // For thinking text, we append. The element.textContent is already the accumulated prior thinking text.
+                    // No clearing of element.textContent here for thinking text.
                 } else { // Final AI response
                     let rawNewChunk;
                     if (fullTextPortion.startsWith(previousFullMessage)) {
@@ -2567,11 +2579,11 @@
                 }
             
                 let charIndex = 0;
-                let currentTextInElement = element.textContent; // This is currentCleanedContentForDisplay for final response
-            
+                let currentTextInElement = element.textContent || ""; 
+
                 function typeChar() {
                     if (charIndex < textToTypeThisChunk_Cleaned.length) {
-                        currentTextInElement += textToTypeThisChunk_Cleaned.charAt(charIndex);
+                        currentTextInElement += textToTypeThisChunk_Cleaned.charAt(charIndex); // Append new char
                         element.textContent = currentTextInElement;
                         charIndex++;
                         if (chatContainer) chatContainer.scrollTop = chatContainer.scrollHeight;
