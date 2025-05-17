@@ -68,10 +68,11 @@ async def exception_logging_middleware(request: Request, call_next):
 
 if __name__ == "__main__":
     logger.info(f"Starting uvicorn server at {settings.HOST}:{settings.PORT}")
-    uvicorn.run(
-        "main:app",
-        host=settings.HOST,
-        port=settings.PORT,
-        reload=settings.DEBUG_MODE,
-        log_level=settings.LOG_LEVEL.lower(),
-    )
+    # uvicorn.run(
+    #     "main:app",
+    #     host=settings.HOST ,
+    #     port=settings.PORT,
+    #     reload=settings.DEBUG_MODE,
+    #     log_level=settings.LOG_LEVEL.lower(),
+    # )
+    uvicorn.run("main:app", host="127.0.0.1", port=8888, reload=True)

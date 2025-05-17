@@ -105,4 +105,20 @@ class RAGService:
                             continue
                             
         except Exception as e:
-            yield {"event": "error", "message": f"RAG检索错误: {str(e)}"} 
+            self.logger.error(f"检索失败: {str(e)}")
+            yield {"event": "error", "message": str(e)} 
+
+    # async def health_check(self) -> bool:
+    #     """检查RAG服务是否可用"""
+    #     try:
+    #         # 简单检查，尝试连接API
+    #         async with aiohttp.ClientSession() as session:
+    #             async with session.get(
+    #                 f"{self.api_url}/api/v1/status", 
+    #                 headers={"Authorization": f"Bearer {self.api_key}"},
+    #                 timeout=3
+    #             ) as response:
+    #                 return response.status == 200
+    #     except Exception as e:
+    #         self.logger.error(f"RAG服务健康检查失败: {str(e)}")
+    #         return False 

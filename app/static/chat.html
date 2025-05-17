@@ -867,13 +867,13 @@
         }
 
         /* 添加到style标签中 */
-        .thinking-content-box {
-            font-size: 14px; /* 比正文小2号 */
-            color: #888; /* 浅灰色 */
+        .thinking-content-box { /* 这是思考内容的总容器 */
+            font-size: 14px; 
+            color: #888; 
             background-color: #f9f9f9;
             padding: 10px 15px;
-            margin: 10px 0;
-            border-radius: 8px;
+            margin: 0 0 10px 0; /* thinking-box-header takes care of top margin */
+            border-radius: 0 0 8px 8px; /* Rounded bottom corners if header is separate */
             border-left: 3px solid #ffc107;
             line-height: 1.5;
             white-space: pre-wrap;
@@ -881,17 +881,36 @@
             font-family: monospace;
             max-height: 200px;
             overflow-y: auto;
+            /* Ensure the box itself takes full available width if its parent allows */
+            width: 100%; /* Or based on its parent in .response-container */
+            box-sizing: border-box; /* Important if padding/border are added */
         }
 
-        .thinking-completed {
+        .thinking-content-box.thinking-completed {
             border-left-color: #28a745;
         }
 
-        .typing-text {
-            white-space: pre-wrap;
+        .thinking-content-wrapper { /* 包裹所有思考内容块(span + br)的div */
+            display: block; /* Default is block, just to be sure */
+            width: 100%; /* Ensure this wrapper takes full width of its parent (.thinking-content-box) */
         }
 
-        /* 添加到style标签中 */
+        .typing-text, 
+        .rag-knowledge.typing-text { /* Target both normal and RAG thinking texts */
+            white-space: pre-wrap;
+            overflow-wrap: break-word; 
+            display: block; /* 改为块级元素，使其能够占据整行 */
+            width: 100%;    /* 宽度撑满其父容器 (.thinking-content-wrapper) */
+            box-sizing: border-box; /* 如果未来给这些span加padding/border，这个属性很重要 */
+            /* text-align: left; */ /* 默认是left, 如果需要justify则取消注释，但需谨慎 */
+        }
+
+        /* 如果 .rag-knowledge 有特定样式，确保它们与 .typing-text 结合时不会冲突 */
+        .rag-knowledge { /* This style was already present */
+            color: #4a6da7; 
+            font-weight: 500;
+        }
+
         .thinking-box-header {
             display: flex;
             justify-content: space-between;
@@ -1066,12 +1085,20 @@
             let currentThinkingMode = false;
             let responseContainer = null;
             let messageTimeout; // Add timeout variable for safety
+            let currentActiveResponseContainer = null; // ADD THIS LINE
 
             // 添加全局变量用于存储上一次的完整消息
             let previousFullMessage = '';
+            let currentCleanedContentForDisplay = ''; // ADDED: Tracks accumulated cleaned final response
             let typingTimer = null;
             let currentTypingIndex = 0;
             let pendingText = '';
+
+            // 添加全局变量用于存储思考内容
+            let thinkingContents = [];
+            let isThinkingCompleted = false;
+            // 全局的状态变量，确保在每次新消息开始时重置
+            let isResponseStarted = false; // This is fine at global scope if reset correctly per message cycle
 
             // 解析URL参数函数
             function getUrlParams() {
@@ -1334,15 +1361,20 @@
                 lastSentTime = now;
 
                 // 重置对话状态 - 清除之前的思考和响应容器ID
-                const oldThinking = document.getElementById('thinkingContainer');
+                const oldThinking = document.getElementById('thinkingContainer'); // This ID is for a different type of thinking box
                 if (oldThinking) {
                     oldThinking.id = 'completed-thinking-' + Date.now();
                 }
 
-                const oldResponse = document.getElementById('responseContainer');
-                if (oldResponse) {
-                    oldResponse.id = 'completed-response-' + Date.now();
+                // This ensures that IF there's an element with ID 'responseContainer' from a *previous,
+                // possibly stuck* message, its ID is changed so it doesn't conflict.
+                // This ID is not strictly needed for the new instance-based logic but can help clear old global IDs.
+                const oldResponseWithGlobalID = document.getElementById('responseContainer'); 
+                if (oldResponseWithGlobalID) { 
+                    // console.log("sendMessage: Renaming old #responseContainer to completed-response-...");
+                    oldResponseWithGlobalID.id = 'completed-response-' + Date.now(); 
                 }
+                currentActiveResponseContainer = null; // Ensure it's null before a new stream potentially starts
 
                 // 禁用发送按钮并显示加载指示器
                 sendBtn.disabled = true;
@@ -2107,8 +2139,7 @@
             /* 修改createResponseContainer函数 */
             function createResponseContainer() {
                 const container = document.createElement('div');
-                container.id = 'responseContainer';
-                container.className = 'response-container';
+                container.className = 'response-container'; // Rely on class for styling
                 
                 // 添加角色标题区域
                 const header = document.createElement('div');
@@ -2250,250 +2281,423 @@
                     };
                     console.log('Role selected:', currentRole);
 
-                    // 清除旧容器
-                    const oldContainer = document.getElementById('responseContainer');
-                    if (oldContainer) {
-                        oldContainer.id = 'completed-response-' + Date.now();
+                    // If a previous active container exists, finalize it visually or mark as completed
+                    if (currentActiveResponseContainer) {
+                         // Optionally add a class or visual cue that this container is now "old"
+                         currentActiveResponseContainer.classList.add('previous-response');
                     }
 
-                    // 创建新容器
-                    const responseContainer = createResponseContainer();
-                    chatContainer.appendChild(responseContainer);
+                    currentActiveResponseContainer = createResponseContainer(); // createResponseContainer returns the new div
+                    chatContainer.appendChild(currentActiveResponseContainer);
                     
-                    // 更新标题区域
-                    const headerTitle = responseContainer.querySelector('.chat-header-title');
-                    if (headerTitle) {
-                        headerTitle.textContent = data.role_name;
+                    const headerTitle = currentActiveResponseContainer.querySelector('.chat-header-title');
+                    if (headerTitle) headerTitle.textContent = data.role_name;
+                    
+                    const emotionTag = currentActiveResponseContainer.querySelector('.header-emotion-tag');
+                    if (emotionTag && data.emotion) { // Assuming role_selected might also provide initial emotion
+                        emotionTag.textContent = data.emotion; 
+                        emotionTag.style.display = 'inline-block';
+                    } else if (emotionTag) {
+                         emotionTag.style.display = 'none'; // Hide if no emotion
                     }
-
-                    // 初始化全局消息累积变量
-                    window.currentMessageContent = '';
+                    
+                    thinkingContents = [];
+                    isThinkingCompleted = false;
+                    isResponseStarted = false; 
+                    previousFullMessage = ''; 
+                    currentCleanedContentForDisplay = ''; // RESET HERE
+                    
                     return;
                 }
 
-                // 处理情绪事件 - 修改这部分
+                // Ensure currentActiveResponseContainer exists for subsequent events
+                if (!currentActiveResponseContainer && data.event !== "stream_end" && data.event !== "error" && data.event !== "complete") {
+                    // This might happen if role_selected was missed or thinking is the very first event.
+                    console.warn(`Event ${data.event} received but currentActiveResponseContainer is null. Attempting to create.`);
+                    if (!currentRole && data.role_name) { // Try to set role if available
+                        currentRole = { name: data.role_name, id: data.role_id || "unknown" };
+                    }
+                    currentActiveResponseContainer = createResponseContainer();
+                    chatContainer.appendChild(currentActiveResponseContainer);
+                    // Update header if role info is in this event
+                    const headerTitle = currentActiveResponseContainer.querySelector('.chat-header-title');
+                    if (headerTitle && currentRole) headerTitle.textContent = currentRole.name;
+                }
+
+
+                // 处理情绪事件 
                 if (data.event === "emotion") {
-                    // 获取响应容器
-                    const responseContainer = document.getElementById('responseContainer');
-                    if (!responseContainer) return;
+                    if (!currentActiveResponseContainer) { console.error("Emotion event: currentActiveResponseContainer is null!"); return; }
                     
-                    // 找到标题中的情绪标签
-                    const header = responseContainer.querySelector('.chat-header');
-                    if (header) {
-                        const emotionTag = header.querySelector('.header-emotion-tag');
-                        if (emotionTag) {
-                            emotionTag.textContent = `${data.emotion}`;
-                            emotionTag.style.display = 'inline-block'; // 显示情绪标签
-                        }
+                    const emotionTag = currentActiveResponseContainer.querySelector('.header-emotion-tag');
+                    if (emotionTag) {
+                        emotionTag.textContent = `${data.emotion}`;
+                        // Example: Update style based on emotion, or use a predefined class
+                        // emotionTag.className = `header-emotion-tag emotion-${data.emotion_type || 'generic'}`;
+                        emotionTag.style.backgroundColor = '#e8f5e9'; 
+                        emotionTag.style.color = '#388e3c';
+                        emotionTag.style.display = 'inline-block'; 
                     }
                     return;
                 }
                 
                 // 处理思考事件
                 if (data.event === "thinking") {
-                    // 获取响应容器
-                    const responseContainer = document.getElementById('responseContainer');
-                    if (!responseContainer) return;
-                    
-                    // 添加思考标签到事件标签区域
-                    const eventTags = responseContainer.querySelector('.event-tags');
-                    if (eventTags) {
-                        let thinkingTag = eventTags.querySelector('.thinking-tag');
-                        if (!thinkingTag) {
-                            thinkingTag = document.createElement('div');
-                            thinkingTag.className = 'event-tag thinking-tag';
-                            eventTags.appendChild(thinkingTag);
-                            
-                            // 不再添加分隔线
-                        }
-                        thinkingTag.textContent = `思考中...`;
-                        
-                        // 仍然标记已添加思考标记
-                        responseContainer.dataset.hasThinking = 'true';
+                    thinkingContents = [];
+                    isThinkingCompleted = false;
+
+                    if (!currentActiveResponseContainer) { 
+                        console.error("Thinking event: currentActiveResponseContainer is null! This shouldn't happen if role_selected was processed.");
+                        // Fallback: Attempt to create one if absolutely necessary
+                        if (!currentRole && data.role_name) { currentRole = { name: data.role_name, id: data.role_id || "unknown" }; }
+                        currentActiveResponseContainer = createResponseContainer();
+                        chatContainer.appendChild(currentActiveResponseContainer);
+                        const headerTitle = currentActiveResponseContainer.querySelector('.chat-header-title');
+                        if (headerTitle && currentRole) headerTitle.textContent = currentRole.name;
+                        console.log("Thinking event: Created fallback currentActiveResponseContainer.");
                     }
+                    
+                    previousFullMessage = '';
+                    currentCleanedContentForDisplay = ''; // RESET HERE
                     return;
                 }
-                
-                // 处理内容消息
-                if (data.content && data.role_name) {
-                    // 获取当前完整消息内容
-                    const fullMessage = data.content;
-                    
-                    // 获取或创建响应容器
-                    let responseContainer = document.getElementById('responseContainer');
-                    if (!responseContainer) {
-                        currentRole = { name: data.role_name, id: data.role_id || "unknown" };
-                        responseContainer = createResponseContainer();
-                        chatContainer.appendChild(responseContainer);
-                    }
-                    
-                    // 获取内容区域
-                    const content = responseContainer.querySelector('.response-content');
-                    if (content) {
-                        // 确定是否是第一条消息
-                        if (!previousFullMessage) {
-                            // 首次消息，直接开始打字效果
-                            content.textContent = "";
-                            previousFullMessage = "";
-                            content.classList.add('typing');
-                            
-                            // 启动打字效果
-                            animateTyping(content, fullMessage, 0);
-                        } else if (fullMessage.length > previousFullMessage.length && fullMessage.startsWith(previousFullMessage)) {
-                            // 继续打字效果，只打出新增部分
-                            // 不需要重置当前显示的内容
-                            const newTextPortion = fullMessage.substring(previousFullMessage.length);
-                            animateTyping(content, fullMessage, previousFullMessage.length);
-                        }
-                        
-                        // 更新前一条消息记录
-                        previousFullMessage = fullMessage;
-                    }
-                }
 
-                // 在processEvent函数中添加对thinking_content事件的处理
+                // 处理思考内容
                 if (data.event === "thinking_content") {
-                    // 获取或创建思考内容容器
-                    let thinkingBox = document.getElementById('thinkingContentBox');
-                    
-                    // 如果容器不存在，则创建一个
-                    if (!thinkingBox) {
-                        // 获取响应容器
-                        const responseContainer = document.getElementById('responseContainer');
-                        if (!responseContainer) return;
-                        
-                        // 查找事件标签区域
-                        const eventTags = responseContainer.querySelector('.event-tags');
-                        if (!eventTags) return;
-                        
-                        // 创建思考内容容器头部
-                        const thinkingHeader = document.createElement('div');
-                        thinkingHeader.className = 'thinking-box-header';
-                        thinkingHeader.innerHTML = '<span>思考中...</span><button class="thinking-box-toggle"><i class="fas fa-chevron-up"></i></button>';
-                        
-                        // 创建思考内容容器
-                        thinkingBox = document.createElement('div');
-                        thinkingBox.id = 'thinkingContentBox';
-                        thinkingBox.className = 'thinking-content-box';
-                        
-                        // 创建思考内容区域
-                        const thinkingContent = document.createElement('div');
-                        thinkingContent.className = 'thinking-content-wrapper';
-                        thinkingBox.appendChild(thinkingContent);
-                        
-                        // 添加点击事件处理
-                        thinkingHeader.querySelector('.thinking-box-toggle').addEventListener('click', () => {
-                            toggleThinkingBox(thinkingBox);
+                    if (!currentActiveResponseContainer) { console.error("thinking_content: currentActiveResponseContainer is null!"); return; }
+                    thinkingContents.push({ content: data.content, type: data.type }); // Keep populating for now
+
+                    let thinkingHeaderContainer = currentActiveResponseContainer.querySelector('.thinking-box-header');
+                    let thinkingBox = currentActiveResponseContainer.querySelector('.thinking-content-box');
+                    let thinkingContentWrapper;
+
+                    // Ensure header exists
+                    if (!thinkingHeaderContainer) {
+                        thinkingHeaderContainer = document.createElement('div');
+                        thinkingHeaderContainer.className = 'thinking-box-header';
+                        // Default to expanded if content is being added
+                        thinkingHeaderContainer.innerHTML = '<span>思考中...</span><button class="thinking-box-toggle"><i class="fas fa-chevron-up"></i></button>'; 
+                        thinkingHeaderContainer.querySelector('.thinking-box-toggle').addEventListener('click', () => {
+                            const boxToToggle = currentActiveResponseContainer.querySelector('.thinking-content-box');
+                            if (boxToToggle) toggleThinkingBox(boxToToggle);
                         });
-                        
-                        // 将标题和容器添加到响应容器
-                        responseContainer.insertBefore(thinkingHeader, responseContainer.querySelector('.message-box'));
-                        responseContainer.insertBefore(thinkingBox, responseContainer.querySelector('.message-box'));
+                        const messageBox = currentActiveResponseContainer.querySelector('.message-box');
+                        if (messageBox) currentActiveResponseContainer.insertBefore(thinkingHeaderContainer, messageBox);
+                        else currentActiveResponseContainer.appendChild(thinkingHeaderContainer);
+                    } else {
+                        const headerSpan = thinkingHeaderContainer.querySelector('span');
+                        if (headerSpan && !isThinkingCompleted) headerSpan.textContent = '思考中...'; // Keep as "思考中..." if not completed
+                    }
+
+                    // Ensure content box and wrapper exist
+                    if (!thinkingBox) {
+                        thinkingBox = document.createElement('div');
+                        thinkingBox.className = 'thinking-content-box';
+                        thinkingContentWrapper = document.createElement('div');
+                        thinkingContentWrapper.className = 'thinking-content-wrapper';
+                        thinkingBox.appendChild(thinkingContentWrapper);
+
+                        if (thinkingHeaderContainer.nextSibling) currentActiveResponseContainer.insertBefore(thinkingBox, thinkingHeaderContainer.nextSibling);
+                        else currentActiveResponseContainer.appendChild(thinkingBox);
+                    } else {
+                        thinkingContentWrapper = thinkingBox.querySelector('.thinking-content-wrapper');
+                    }
+
+                    // Ensure box and wrapper are visible when new content arrives
+                    thinkingBox.style.display = 'block';
+                    if(thinkingContentWrapper) thinkingContentWrapper.style.display = 'block';
+                    const toggleIcon = thinkingHeaderContainer.querySelector('.thinking-box-toggle i');
+                    if (toggleIcon) toggleIcon.className = 'fas fa-chevron-up'; // Set to expanded
+
+                    // Create new span for this piece of thinking content
+                    const textSpan = document.createElement('span');
+                    textSpan.className = data.type === "rag_knowledge" ? 'rag-knowledge typing-text' : 'typing-text';
+                    if(thinkingContentWrapper) thinkingContentWrapper.appendChild(textSpan);
+                    
+                    displayWithTypewriter(textSpan, data.content, true); // True for thinking text
+
+                    if(thinkingContentWrapper) thinkingContentWrapper.appendChild(document.createElement('br'));
+
+                    if (chatContainer) chatContainer.scrollTop = chatContainer.scrollHeight;
+                    return;
+                }
+
+                // 处理思考完成事件
+                if (data.event === "thinking_completed" || data.event === "rag_thinking_completed") {
+                    if (!currentActiveResponseContainer) { console.error("thinking_completed: currentActiveResponseContainer is null!"); return; }
+                    console.log("Thinking completed event received.");
+                    isThinkingCompleted = true; 
+                    
+                    const thinkingHeader = currentActiveResponseContainer.querySelector('.thinking-box-header');
+                    const thinkingHeaderSpan = thinkingHeader ? thinkingHeader.querySelector('span') : null;
+                    
+                    if (thinkingHeaderSpan) {
+                        thinkingHeaderSpan.textContent = '思考完成'; 
                     }
                     
-                    // 获取内容包装区域
-                    const contentWrapper = thinkingBox.querySelector('.thinking-content-wrapper');
-                    if (!contentWrapper) return;
+                    // Content remains visible, user can collapse. No change to thinkingBoxElement display here.
+                    console.log("Thinking completed. Content displayed should remain visible.");
+                    return;
+                }
+
+                // 处理内容消息 (final response part)
+                if (data.content && data.role_name) {
+                    console.log("Final Content Event:", { data_content: data.content, isThinkingCompleted: isThinkingCompleted, previousFullMessage_before_call: previousFullMessage });
                     
-                    // 添加内容到容器
-                    if (data.content) {
-                        const textSpan = document.createElement('span');
-                        textSpan.className = 'typing-text';
-                        textSpan.textContent = '';
-                        contentWrapper.appendChild(textSpan);
-                        
-                        // 打字机效果显示内容
-                        let i = 0;
-                        const typing = setInterval(() => {
-                            if (i < data.content.length) {
-                                textSpan.textContent += data.content.charAt(i);
-                                i++;
-                                // 滚动到最新内容
-                                chatContainer.scrollTop = chatContainer.scrollHeight;
+                    if (isThinkingCompleted) { 
+                        if (currentActiveResponseContainer) {
+                            const contentDisplayElement = currentActiveResponseContainer.querySelector('.response-content'); 
+                            if (contentDisplayElement) {
+                                const thinkingBoxToCollapse = currentActiveResponseContainer.querySelector('.thinking-content-box');
+                                if (thinkingBoxToCollapse) {
+                                    const wrapper = thinkingBoxToCollapse.querySelector('.thinking-content-wrapper');
+                                    if (wrapper && wrapper.style.display !== 'none') {
+                                        toggleThinkingBox(thinkingBoxToCollapse, true); // forceCollapse
+                                        console.log("Ensured thinking box is collapsed before showing final content.");
+                                    }
+                                }
+
+                                if (!contentDisplayElement.dataset.initialized) { 
+                                    contentDisplayElement.dataset.initialized = 'true';
+                                    isResponseStarted = true; 
+                                }
+                                displayWithTypewriter(contentDisplayElement, data.content, false); 
                             } else {
-                                clearInterval(typing);
+                                console.error("'.response-content' element not found within currentActiveResponseContainer!");
                             }
-                        }, 15);
+                        } else {
+                            console.error("currentActiveResponseContainer is null for final content!"); 
+                        }
+                    } else {
+                        console.warn("Received final content, but isThinkingCompleted is false. Content:", data.content);
                     }
                     return;
                 }
 
-                // 处理思考完成事件 - 自动折叠
-                if (data.event === "thinking_completed" || data.event === "rag_thinking_completed") {
-                    const thinkingBox = document.getElementById('thinkingContentBox');
-                    if (thinkingBox) {
-                        thinkingBox.classList.add('thinking-completed');
-                        
-                        // 找到标题并更新文本
-                        const header = document.querySelector('.thinking-box-header span');
-                        if (header) {
-                            header.textContent = '思考完成 (点击展开/折叠)';
+                // 处理RAG检索结果
+                if (data.event === 'rag_retrieved') {
+                    if (!currentActiveResponseContainer) { console.error("rag_retrieved: currentActiveResponseContainer is null!"); return; }
+                    
+                    if (data.status === 'empty_result') {
+                        const thinkingBoxElement = currentActiveResponseContainer.querySelector('.thinking-content-box'); 
+                        if (thinkingBoxElement) { // It should have been created by thinking_content
+                            const contentWrapper = thinkingBoxElement.querySelector('.thinking-content-wrapper');
+                            if (contentWrapper) {
+                                thinkingBoxElement.style.display = 'block';
+                                contentWrapper.style.display = 'block';
+                                const emptyResult = document.createElement('div');
+                                emptyResult.className = 'rag-empty-result'; // Ensure this class has styles
+                                const queryText = lastUserMessage ? lastUserMessage.replace(/^#查询\s+/i, '') : '';
+                                emptyResult.innerHTML = `<i class="fas fa-exclamation-triangle"></i> 知识库中未找到关于"${queryText}"的相关信息`;
+                                contentWrapper.appendChild(emptyResult);
+                                const toggleIcon = currentActiveResponseContainer.querySelector('.thinking-box-header .thinking-box-toggle i');
+                                if(toggleIcon) toggleIcon.className = 'fas fa-chevron-up'; 
+                            }
                         }
-                        
-                        // 自动折叠内容 - 延迟1秒执行，让用户有时间看到完成状态
-                        setTimeout(() => {
-                            toggleThinkingBox(thinkingBox, true); // 强制折叠
-                        }, 1000);
                     }
-                    return;
+                     return;
+                }
+
+                if (data.event === "stream_end" || data.event === "error" || data.event === "complete") {
+                    console.log("Stream ended or error occurred:", data.event);
+                    isProcessingMessage = false;
+                    if(sendBtn) sendBtn.disabled = false; 
+                    if(typingIndicator) typingIndicator.style.display = 'none'; 
+                    
+                    if (currentEventSource) {
+                        closeEventSource(); 
+                    }
+                    if (currentActiveResponseContainer) { // Check if it exists before querying
+                        const respContentEl = currentActiveResponseContainer.querySelector('.response-content');
+                        if (respContentEl) {
+                            respContentEl.classList.remove('loading');
+                        }
+                    }
+                    previousFullMessage = ''; 
+                    currentCleanedContentForDisplay = ''; // RESET HERE
+                    currentActiveResponseContainer = null; // Reset for the next message cycle
                 }
             }
 
             // 新的打字效果函数 - 更高效且避免重复
-            function animateTyping(element, fullText, startPos) {
-                // 取消可能存在的旧打字计时器
-                if (typingTimer) {
-                    clearTimeout(typingTimer);
-                    typingTimer = null;
+            function displayWithTypewriter(element, fullTextPortion, isThinkingText = false) {
+                if (element.typingTimerId) { 
+                    clearTimeout(element.typingTimerId);
+                    element.typingTimerId = null;
                 }
-                
-                let currentPos = startPos;
-                
-                function typeNextChar() {
-                    if (currentPos < fullText.length) {
-                        // 显示到当前位置的文本
-                        element.textContent = fullText.substring(0, currentPos + 1);
-                        currentPos++;
-                        
-                        // 滚动到最新内容
-                        chatContainer.scrollTop = chatContainer.scrollHeight;
-                        
-                        // 继续打字
-                        typingTimer = setTimeout(typeNextChar, typingSpeed);
+            
+                let textToTypeThisChunk_Cleaned = "";
+            
+                if (isThinkingText) { 
+                    textToTypeThisChunk_Cleaned = fullTextPortion; // Thinking text is typed as is
+                    element.textContent = ''; // Each thinking span starts fresh for its own content
+                } else { // Final AI response
+                    let rawNewChunk;
+                    if (fullTextPortion.startsWith(previousFullMessage)) {
+                        rawNewChunk = fullTextPortion.substring(previousFullMessage.length);
                     } else {
-                        // 打字完成
-                        element.classList.remove('typing');
-                        typingTimer = null;
+                        // Stream reset or mismatch. We should re-type the whole cleaned `fullTextPortion`.
+                        console.warn("Full message mismatch for final response. Retyping entire cleaned content.", { previous: previousFullMessage, new: fullTextPortion });
+                        element.textContent = ""; // Clear DOM content
+                        currentCleanedContentForDisplay = ""; // Reset accumulator for cleaned content
+                        rawNewChunk = fullTextPortion; // Process the whole thing as "new"
+                    }
+            
+                    // Remove 『...』 and 【...】 patterns
+                    textToTypeThisChunk_Cleaned = rawNewChunk.replace(/『.*?』/g, '').replace(/【.*?】/g, '');
+                    // Clean up resulting empty lines or lines with only whitespace more effectively
+                    let lines = textToTypeThisChunk_Cleaned.split('\n');
+                    lines = lines.map(line => line.trim() === '' ? '' : line); // Trim lines that become empty
+                    textToTypeThisChunk_Cleaned = lines.filter(line => line !== '').join('\n'); // Join non-empty lines
+
+                    // Ensure the element displays the current accumulated cleaned content before typing the new cleaned chunk
+                    element.textContent = currentCleanedContentForDisplay;
+                }
+            
+                // console.log("displayWithTypewriter details:", { isThinkingText, fullTextPortion, textToTypeThisChunk_Cleaned, currentCleanedContentForDisplay_beforeChunk: currentCleanedContentForDisplay });
+
+                if (!textToTypeThisChunk_Cleaned && !isThinkingText) {
+                    // Even if the cleaned chunk is empty, update previousFullMessage with the raw data.
+                    previousFullMessage = fullTextPortion;
+                    // console.log("Cleaned new chunk is empty. Raw stream updated.");
+                    if (element.classList && fullTextPortion === previousFullMessage) { 
+                         element.classList.remove('typing');
+                    }
+                    return;
+                }
+            
+                let charIndex = 0;
+                let currentTextInElement = element.textContent; // This is currentCleanedContentForDisplay for final response
+            
+                function typeChar() {
+                    if (charIndex < textToTypeThisChunk_Cleaned.length) {
+                        currentTextInElement += textToTypeThisChunk_Cleaned.charAt(charIndex);
+                        element.textContent = currentTextInElement;
+                        charIndex++;
+                        if (chatContainer) chatContainer.scrollTop = chatContainer.scrollHeight;
+                        element.typingTimerId = setTimeout(typeChar, typingSpeed);
+                    } else {
+                        element.typingTimerId = null;
+                        if (!isThinkingText) {
+                            previousFullMessage = fullTextPortion; // Update raw tracker
+                            currentCleanedContentForDisplay = element.textContent; // Update cleaned accumulator with the final state
+                            if (element.classList) element.classList.remove('typing');
+                        }
+                        // For thinking text, each span is independent.
                     }
                 }
                 
-                // 开始打字
-                typeNextChar();
+                if (!isThinkingText && element.classList) { 
+                   element.classList.add('typing');
+                }
+                typeChar();
             }
 
             // 添加到script标签末尾 - 切换思考框显示/隐藏的函数
-            function toggleThinkingBox(thinkingBox, forceCollapse = false) {
+            function toggleThinkingBox(thinkingBox, forceCollapse = false) { // thinkingBox is the .thinking-content-box element
+                if (!thinkingBox) return;
                 const contentWrapper = thinkingBox.querySelector('.thinking-content-wrapper');
-                const toggleBtn = document.querySelector('.thinking-box-toggle i');
-                
-                if (!contentWrapper || !toggleBtn) return;
-                
-                // 检查当前状态
-                const isExpanded = contentWrapper.style.display !== 'none';
-                
-                // 如果强制折叠或当前是展开状态
-                if (forceCollapse || isExpanded) {
-                    // 折叠内容
-                    contentWrapper.style.display = 'none';
-                    toggleBtn.className = 'fas fa-chevron-down';
+                // The toggle button is in the header, which is a sibling of thinkingBox or parent's sibling
+                // So, we need to find the header associated with this thinkingBox
+                let toggleBtnIcon = null;
+                if (thinkingBox.previousElementSibling && thinkingBox.previousElementSibling.classList.contains('thinking-box-header')) {
+                    const header = thinkingBox.previousElementSibling;
+                    const btn = header.querySelector('.thinking-box-toggle i');
+                    if (btn) toggleBtnIcon = btn;
                 } else {
-                    // 展开内容
-                    contentWrapper.style.display = 'block';
-                    toggleBtn.className = 'fas fa-chevron-up';
+                    // Fallback if structure is different or to find it more robustly
+                    // This assumes thinkingBox is inside currentActiveResponseContainer
+                    if(currentActiveResponseContainer) {
+                        const headerInCurrent = currentActiveResponseContainer.querySelector('.thinking-box-header .thinking-box-toggle i');
+                        if(headerInCurrent) toggleBtnIcon = headerInCurrent;
+                    }
                 }
                 
-                // 滚动到最新位置
-                chatContainer.scrollTop = chatContainer.scrollHeight;
+                if (!contentWrapper || !toggleBtnIcon) {
+                    console.warn("toggleThinkingBox: contentWrapper or toggleBtnIcon not found for", thinkingBox);
+                    return;
+                }
+                
+                const isExpanded = contentWrapper.style.display !== 'none';
+                
+                if (forceCollapse || isExpanded) {
+                    contentWrapper.style.display = 'none';
+                    toggleBtnIcon.className = 'fas fa-chevron-down';
+                } else {
+                    contentWrapper.style.display = 'block';
+                    toggleBtnIcon.className = 'fas fa-chevron-up';
+                }
+                
+                if (chatContainer) chatContainer.scrollTop = chatContainer.scrollHeight;
+            }
+
+            // 添加新函数用于开始显示思考内容 (This is invoked by user action e.g. clicking expand)
+            function startThinkingContentDisplay() { 
+                if (thinkingDisplayStarted || thinkingContents.length === 0) return;
+                
+                if (!currentActiveResponseContainer) {
+                    console.error("startThinkingContentDisplay: currentActiveResponseContainer is null.");
+                    return;
+                }
+                const thinkingBox = currentActiveResponseContainer.querySelector('.thinking-content-box');
+                
+                if (!thinkingBox) {
+                    console.error("Thinking box (.thinking-content-box) not found to display content.");
+                    return;
+                }
+                const contentWrapper = thinkingBox.querySelector('.thinking-content-wrapper');
+                if (!contentWrapper) {
+                    console.error("Thinking content wrapper not found within .thinking-content-box.");
+                    return;
+                }
+                
+                // This function is now primarily about populating an ALREADY EXPANDED box,
+                // or if called programmatically, ensure it's expanded.
+                // The toggleThinkingBox function handles the actual display none/block.
+                // If this function is called, we assume the box *should* be visible.
+
+                if (contentWrapper.style.display === 'none') { // If hidden, show it
+                    toggleThinkingBox(thinkingBox, false); // false means expand if collapsed
+                }
+                
+                if (thinkingDisplayStarted && contentWrapper.children.length > 0 && contentWrapper.children.length === thinkingContents.length) {
+                    // Content already displayed, do nothing
+                    console.log("startThinkingContentDisplay: Content already seems to be displayed.");
+                    return;
+                }
+
+                thinkingDisplayStarted = true; // Mark that we've started the process
+                contentWrapper.innerHTML = ''; // Clear previous before starting new display
+                
+                let currentContentIndex = 0;
+                let typeNextTimer = null;
+
+                function displayNextChunk() {
+                    if (typeNextTimer) clearTimeout(typeNextTimer);
+
+                    if (currentContentIndex >= thinkingContents.length) {
+                        thinkingDisplayStarted = false; // Reset for potential re-expansion later if needed
+                        return;
+                    }
+
+                    const item = thinkingContents[currentContentIndex];
+                    const textSpan = document.createElement('span');
+                    textSpan.className = item.type === "rag_knowledge" ? 'rag-knowledge typing-text' : 'typing-text';
+                    contentWrapper.appendChild(textSpan);
+                    
+                    // Modify displayWithTypewriter to return a promise or take a callback
+                    // For simplicity, let's assume displayWithTypewriter is fast enough for each chunk
+                    // or we use a timeout to simulate sequential typing of chunks.
+                    displayWithTypewriter(textSpan, item.content, true); 
+
+                    contentWrapper.appendChild(document.createElement('br')); 
+                    currentContentIndex++;
+                    
+                    // Schedule the next chunk. Adjust timing as needed.
+                    // A small delay helps ensure one chunk "finishes" visually before the next starts if typewriters are quick.
+                    typeNextTimer = setTimeout(displayNextChunk, 50); // Small delay before typing next chunk
+                }
+                displayNextChunk();
             }
         });
 
@@ -2631,9 +2835,8 @@
             currentResponseContent = '';
             
             const container = document.createElement('div');
-            container.id = 'responseContainer';
-            container.className = 'response-container';
-
+            container.className = 'response-container'; // Rely on class for styling
+            
             // 创建头像
             const avatar = document.createElement('div');
             avatar.className = 'response-avatar';

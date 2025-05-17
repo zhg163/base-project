@@ -6,6 +6,7 @@ from langchain_core.exceptions import OutputParserException
 import json
 import logging
 import re
+import asyncio
 
 from .ai.llm.llm_factory import LLMFactory
 from .ai.prompt.prompt_service import PromptService
@@ -58,7 +59,6 @@ class ChatService:
             # 确保依赖注入正确
             self.content_filter = ContentFilter()
             self.rag_router = RAGRouter(llm_service=self.llm_service)  # 传入llm_service
-            self.rag_service = RAGService()  # 添加RAGService
             self.tool_router = ContentToolRouter()
             self.function_caller = FunctionCaller()
             logger.info("高级功能初始化完成")
@@ -67,9 +67,19 @@ class ChatService:
             # 设置为None，在使用时需要检查
             self.content_filter = None
             self.rag_router = None
-            self.rag_service = None
             self.tool_router = None
             self.function_caller = None
+        
+        self._mongo_client = None  # 缓存MongoDB客户端
+        
+        # 确保只初始化一次RAG服务
+        if not hasattr(self, 'rag_service') or not self.rag_service:
+            try:
+                self.rag_service = RAGService()
+                logger.info("RAG服务初始化完成")
+            except Exception as e:
+                logger.warning(f"RAG服务初始化失败: {str(e)}")
+                self.rag_service = None
     
     async def process_message(self, message, session_id, user_id, user_name):
         # 获取会话信息和所有角色
@@ -144,55 +154,56 @@ class ChatService:
                 system_prompt = PromptService().get_system_prompt(role_name)
             
             # 流式生成
-            async for chunk in llm_service.generate_stream(
-                message=message,
-                system_prompt=system_prompt,
-                temperature=temperature,
-                history=None,  # 步骤1不包含历史记录功能
-                functions=[
-                    self.function_caller.get_function_spec("classify_content"),
-                    self.function_caller.get_function_spec("trigger_rag")
-                ] if self.function_caller else None,
-                function_call={"mode": "auto"},
-                filter_decision={
-                    "action": "0"
-                }
-            ):
-                # 处理chunk
-                if isinstance(chunk, dict):
-                    logger.info(f"收到JSON响应: {json.dumps(chunk)}")
-                    if 'content' in chunk:
-                        # 获取当前完整文本
-                        current_text = chunk['content']
+            async with asyncio.timeout(30):  # 添加30秒超时
+                async for chunk in llm_service.generate_stream(
+                    message=message,
+                    system_prompt=system_prompt,
+                    temperature=temperature,
+                    history=None,  # 步骤1不包含历史记录功能
+                    functions=[
+                        self.function_caller.get_function_spec("classify_content"),
+                        self.function_caller.get_function_spec("trigger_rag")
+                    ] if self.function_caller else None,
+                    function_call={"mode": "auto"},
+                    filter_decision={
+                        "action": "0"
+                    }
+                ):
+                    # 处理chunk
+                    if isinstance(chunk, dict):
+                        logger.info(f"收到JSON响应: {json.dumps(chunk)}")
+                        if 'content' in chunk:
+                            # 获取当前完整文本
+                            current_text = chunk['content']
+                            
+                            # 更新缓存
+                            self.sent_content_cache[request_id] = current_text
+                            
+                            # 发送完整累积内容，而不是只发送新增部分
+                            response_data = {'content': current_text}
+                            if selected_role:
+                                response_data['role_name'] = selected_role.role_name
+                            yield self.sse_formatter.format_sse(response_data)
+                        else:
+                            # 非内容事件直接发送
+                            if selected_role:
+                                chunk['role_name'] = selected_role.role_name
+                            yield f"data: {json.dumps(chunk)}\n\n"
+                    else:
+                        # 字符串类型处理
+                        current_text = str(chunk)
+                        sent_text = self.sent_content_cache.get(request_id, "")
+                        new_text = current_text[len(sent_text):]
                         
                         # 更新缓存
                         self.sent_content_cache[request_id] = current_text
                         
-                        # 发送完整累积内容，而不是只发送新增部分
-                        response_data = {'content': current_text}
-                        if selected_role:
-                            response_data['role_name'] = selected_role.role_name
-                        yield self.sse_formatter.format_sse(response_data)
-                    else:
-                        # 非内容事件直接发送
-                        if selected_role:
-                            chunk['role_name'] = selected_role.role_name
-                        yield f"data: {json.dumps(chunk)}\n\n"
-                else:
-                    # 字符串类型处理
-                    current_text = str(chunk)
-                    sent_text = self.sent_content_cache.get(request_id, "")
-                    new_text = current_text[len(sent_text):]
-                    
-                    # 更新缓存
-                    self.sent_content_cache[request_id] = current_text
-                    
-                    # 只发送增量部分
-                    if new_text:
-                        response_data = {'content': new_text}
-                        if selected_role:
-                            response_data['role_name'] = selected_role.role_name
-                        yield f"data: {json.dumps(response_data)}\n\n"
+                        # 只发送增量部分
+                        if new_text:
+                            response_data = {'content': new_text}
+                            if selected_role:
+                                response_data['role_name'] = selected_role.role_name
+                            yield f"data: {json.dumps(response_data)}\n\n"
             
             # 清理缓存
             if request_id in self.sent_content_cache:
@@ -390,59 +401,68 @@ class ChatService:
                         clean_message = message.replace(trigger, "", 1).strip()
                         ctx_logger.info(f"检测到强制RAG触发: {trigger}")
                         
+                        # 检查RAG服务配置
+                        if not hasattr(self, 'rag_service') or not self.rag_service:
+                            yield self.sse_formatter.format_sse({
+                                'event': 'error',
+                                'message': '知识库服务未配置，请联系管理员'
+                            })
+                            break
+                        
                         # 直接调用RAG服务
                         try:
-                            ctx_logger.info(f"开始RAG流式检索: {clean_message}")
-                            yield self.sse_formatter.format_sse({
-                                'event': 'rag_retrieved',
-                                'message': '知识库检索开始'
-                            })
-                            
-                            # 累积RAG内容
-                            full_rag_content = ""
-                            
-                            # 流式获取RAG内容
-                            async for rag_chunk in self.rag_service.retrieve_stream(clean_message):
-                                if rag_chunk.get("event") == "error":
-                                    ctx_logger.error(f"RAG检索错误: {rag_chunk.get('message')}")
-                                    yield self.sse_formatter.format_sse({
-                                        'event': 'error',
-                                        'message': f"知识库检索失败: {rag_chunk.get('message')}"
-                                    })
-                                    break
-                                    
-                                # 获取增量内容
-                                content = rag_chunk.get("content", "")
-                                if content:
-                                    # 更新累积内容
-                                    full_rag_content = rag_chunk.get("full_content", full_rag_content + content)
-                                    
-                                    # 发送思考内容事件
-                                    yield self.sse_formatter.format_sse({
-                                        'event': 'thinking_content',
-                                        'content': content,
-                                        'type': 'rag_knowledge'
-                                    })
-                            
-                            # 检索完成        
-                            if full_rag_content:
-                                ctx_logger.info(f"RAG流式检索完成，获取内容长度: {len(full_rag_content)}")
-                                yield self.sse_formatter.format_sse({
-                                    'event': 'rag_thinking_completed',
-                                    'message': '知识库检索完成'
-                                })
+                            # 添加连接日志
+                            ctx_logger.info(f"连接RAG服务准备查询: {clean_message}")
+                                                        
+                            async with asyncio.timeout(30):  # 30秒超时
+                                ctx_logger.info("开始流式RAG检索...")
+                                full_rag_content = ""
                                 
-                                # 更新系统提示
-                                system_prompt = self._enrich_prompt_with_rag(system_prompt, full_rag_content)
-                                message = clean_message  # 更新消息，移除触发前缀
-                            else:
-                                ctx_logger.warning("RAG检索未返回结果")
-                                yield self.sse_formatter.format_sse({
-                                    'event': 'rag_retrieved',
-                                    'message': '知识库检索未找到相关内容'
-                                })
+                                # 直接迭代检索流
+                                async for rag_chunk in self.rag_service.retrieve_stream(clean_message):
+                                    ctx_logger.info(f"接收到RAG检索结果块: {len(str(rag_chunk))}字节")
+                                    
+                                    # 获取增量内容
+                                    content = rag_chunk.get("content", "")
+                                    if content:
+                                        ctx_logger.debug(f"收到RAG内容: {content[:100]}...")  # 记录部分内容
+                                        full_rag_content = rag_chunk.get("full_content", full_rag_content + content)
+                                        ctx_logger.info(f"累积RAG内容长度: {len(full_rag_content)}")
+                                        
+                                        # 发送思考内容事件
+                                        yield self.sse_formatter.format_sse({
+                                            'event': 'thinking_content',
+                                            'content': content,
+                                            'type': 'rag_knowledge'
+                                        })
+                                
+                                # 检索完成
+                                if full_rag_content:
+                                    ctx_logger.info(f"RAG流式检索完成，获取内容长度: {len(full_rag_content)}")
+                                    yield self.sse_formatter.format_sse({
+                                        'event': 'rag_thinking_completed',
+                                        'message': '知识库检索完成'
+                                    })
+                                    
+                                    # 更新系统提示
+                                    system_prompt = self._enrich_prompt_with_rag(system_prompt, full_rag_content)
+                                    message = clean_message  # 更新消息，移除触发前缀
+                                else:
+                                    ctx_logger.warning("RAG检索未返回结果")
+                                    yield self.sse_formatter.format_sse({
+                                        'event': 'rag_retrieved',
+                                        'message': '知识库检索未找到相关内容',
+                                        'status': 'empty_result'
+                                    })
+                            
+                        except asyncio.TimeoutError:
+                            ctx_logger.error("RAG检索超时")
+                            yield self.sse_formatter.format_sse({
+                                'event': 'error',
+                                'message': '知识库检索超时'
+                            })
                         except Exception as e:
-                            ctx_logger.error(f"强制RAG检索失败: {str(e)}")
+                            ctx_logger.error(f"RAG检索失败: {str(e)}")
                             yield self.sse_formatter.format_sse({
                                 'event': 'error',
                                 'message': '知识库检索失败'
