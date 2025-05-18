@@ -112,4 +112,17 @@ async def add_new_users(
         await user_repo.create(user)
         inserted_count += 1
     
-    return {"insertedCount": inserted_count} 
+    return {"insertedCount": inserted_count}
+
+@router.get("/name/{name}", response_model=UserResponse)
+async def get_user_by_username(
+    name: str,
+    user_repo: MongoRepository = Depends(get_user_repository)
+):
+    """
+    根据用户名查询用户信息
+    """
+    user = await user_repo.find_one({"name": name})
+    if not user:
+        raise HTTPException(status_code=404, detail="用户不存在")
+    return user 

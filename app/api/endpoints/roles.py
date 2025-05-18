@@ -120,4 +120,4 @@ async def add_new_roles(
         await role_repo.create(role)
         inserted_count += 1
     
-    return {"insertedCount": inserted_count} 
+    return {"insertedCount": inserted_count}
