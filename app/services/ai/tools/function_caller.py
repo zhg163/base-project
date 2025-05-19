@@ -32,12 +32,26 @@ class FunctionCaller:
             ),
             "trigger_rag": FunctionDefinition(
                 name="trigger_rag",
-                description="当需要查询知识库获取信息时调用此函数。适用于需要事实性信息、定义解释或专业知识的场景。",
+                description="当用户询问任何关于《明日方舟》的剧情、角色、组织、事件、世界观设定、历史背景等需要详细信息的问题时，调用此函数从剧情知识库中检索。如果问题是关于游戏玩法、攻略或与剧情无关的闲聊，则不应调用。",
                 parameters={
                     "type": "object",
                     "properties": {
-                        "query": {"type": "string"},
-                        "type": {"type": "string"}
+                        "query": {
+                            "type": "string",
+                            "description": "根据用户问题提炼出的、用于在《明日方舟》剧情知识库中搜索的核心关键词、角色名、事件名或具体问题。"
+                        },
+                        "character_filter": {
+                            "type": "string",
+                            "description": "可选参数，如果问题主要围绕某个特定角色，请提供角色名，如 '阿米娅', '凯尔希'。"
+                        },
+                        "event_filter": {
+                            "type": "string", 
+                            "description": "可选参数，如果问题主要围绕某个特定剧情事件或章节，请提供事件或章节名，如 '切尔诺伯格事变', '第八章怒号光明'。"
+                        },
+                        "faction_filter": {
+                            "type": "string",
+                            "description": "可选参数，如果问题主要围绕某个特定组织或阵营，请提供组织名，如 '罗德岛', '整合运动', '深海教会'。"
+                        }
                     },
                     "required": ["query"]
                 }
@@ -103,36 +117,69 @@ class FunctionCaller:
         logger.info(f"内容分类结果: {classification}")
         return classification
 
-    async def trigger_rag(self, query: str, type: str = "default") -> Dict[str, Any]:
-        """知识检索触发器 - 由大模型主动调用"""
-        logger.info(f"大模型触发RAG检索: 查询={query}, 类型={type}")
+    async def trigger_rag(self, query: str, character_filter: str = None, event_filter: str = None, faction_filter: str = None) -> Dict[str, Any]:
+        """明日方舟剧情知识库检索触发器 - 由大模型主动调用"""
+        logger.info(f"触发 trigger_rag 函数 - 查询: '{query}'")
+        
+        # 构建增强查询
+        enhanced_query = query
+        filters = []
+        
+        if character_filter:
+            filters.append(f"角色:{character_filter}")
+        if event_filter:
+            filters.append(f"事件:{event_filter}")
+        if faction_filter:
+            filters.append(f"势力:{faction_filter}")
+        
+        if filters:
+            enhanced_query = f"{query} {' '.join(filters)}"
         
         # 调用实际的RAG服务进行检索
         try:
             from app.services.ai.rag.rag_service import RAGService
             rag_service = RAGService()
             
-            # 执行知识检索
-            retrieved_content = await rag_service.retrieve(query)
+            # 执行知识检索并累积结果
+            full_content = ""
+            chunks = []  # 保存所有分块，用于调试
+            
+            # 直接获取流式结果
+            async for rag_chunk in rag_service.retrieve_stream(enhanced_query):
+                content = rag_chunk.get("content", "")
+                if content:
+                    chunks.append(content)
+                    full_content += content
+                    logger.debug(f"RAG检索块长度: {len(content)}, 累积长度: {len(full_content)}")
+            
+            logger.info(f"RAG检索完成, 总块数: {len(chunks)}, 总内容长度: {len(full_content)}")
             
             # 处理检索结果
-            if retrieved_content:
+            if full_content:
                 return {
                     "retrieved": True,
-                    "query": query,
-                    "type": type,
-                    "data": retrieved_content
+                    "query": enhanced_query,
+                    "original_query": query,
+                    "filters": {
+                        "character": character_filter,
+                        "event": event_filter,
+                        "faction": faction_filter
+                    },
+                    "data": full_content,
+                    "chunk_count": len(chunks),
+                    "data_length": len(full_content)
                 }
             else:
+                logger.warning(f"RAG检索未返回有效内容，查询:{enhanced_query}")
                 return {
                     "retrieved": False,
-                    "query": query,
-                    "reason": "未找到相关知识"
+                    "query": enhanced_query,
+                    "reason": "未在明日方舟剧情知识库中找到相关内容"
                 }
         except Exception as e:
-            logger.error(f"RAG检索失败: {str(e)}")
+            logger.error(f"明日方舟剧情RAG检索失败: {str(e)}")
             return {
                 "retrieved": False,
-                "query": query,
+                "query": enhanced_query,
                 "error": str(e)
             }

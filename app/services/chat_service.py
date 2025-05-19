@@ -330,36 +330,52 @@ class ChatService:
                 llm_service = LLMFactory().get_llm_service(model_type)
                 
                 # 8. 构建系统提示词
-                system_prompt = None
-                if selected_role and selected_role.system_prompt:
-                    system_prompt = selected_role.system_prompt
-                else:
-                    system_prompt = PromptService().get_system_prompt()
+                # 首先初始化system_prompt为空字符串
+                system_prompt = ""
                 
-                # 在这里添加情绪约束
-                if selected_role:
-                    # 获取角色的meta数据
-                    role_meta = getattr(selected_role, 'metadata', None)
-                    if role_meta and 'emotions' in role_meta:
-                        # 有明确定义的情绪列表，使用这些情绪
-                        valid_emotions = list(role_meta.get('emotions', {}).keys())
-                    else:
-                        # 默认8种情绪
-                        valid_emotions = ["信任", "喜悦", "期待", "悲伤", "恐惧", "惊讶", "愤怒", "厌恶"]
-                    
-                    if valid_emotions:
-                        emotion_constraint = f"""
-请注意：回复时请严格使用以下{len(valid_emotions)}种情绪之一：
-{', '.join(valid_emotions)}
-情绪格式为『情绪』，例如『信任』、『悲伤』等。
+                # 1. 添加明日方舟RAG指导（第一优先级）
+                arknights_rag_guidance = """
+[明日方舟剧情知识库功能 - 指令!]
+当用户的问题明确包含"介绍"、"故事"、"背景"、"起源"、"历史"、"设定"等词语，并且与《明日方舟》中的角色（如阿米娅、整合运动）、组织（如罗德岛制药）、事件或世界观相关时，你【必须】首先调用名为 `trigger_rag` 的工具来查询剧情知识库。不要尝试使用你自己的知识直接回答这类问题。
+
+例如，当用户问：
+- "介绍罗德岛制药的故事" -> 【必须】调用 trigger_rag(query="罗德岛制药 故事")
+- "整合运动的起源是什么？" -> 【必须】调用 trigger_rag(query="整合运动 起源")
+- "阿米娅有什么背景？" -> 【必须】调用 trigger_rag(query="阿米娅 背景", character_filter="阿米娅")
+
+[明日方舟剧情知识库能力 - 非常重要!]
+你拥有一个可以访问《明日方舟》剧情知识库的工具。这个知识库专注于《明日方舟》的叙事内容，包含:
+1. 主线剧情：从序章到最新章节的完整故事情节、关键对话、重要转折。
+2. 活动剧情：如"SideStory"、"故事集"、"插曲"等限时或常驻活动的剧情内容。
+3. 角色背景：干员的个人档案、语音中揭示的背景故事、与其他角色的关系、经历和动机。
+4. 世界观设定：泰拉世界的地理、国家、种族、历史事件、源石病、天灾、移动城市等核心设定。
+5. 组织势力：罗德岛制药、整合运动、各国政府、商业联合会、宗教团体等的背景、目标和行动。
+6. 专有名词解释：游戏中出现的特定术语、物品、概念的剧情含义。
+
+[明日方舟剧情知识库使用指南]
+应该调用剧情知识库的情况：
+• 用户询问特定角色背景、个性或经历。
+• 用户询问特定剧情事件细节。
+• 用户想了解某个国家、组织或种族的背景。
+• 用户对世界观设定有疑问。
+• 用户的问题需要深入档案、对话或剧情文本的精确信息。
+• 用户想回顾或理清某段剧情脉络。
+
+不应该调用剧情知识库的情况：
+• 关于游戏玩法机制的问题。
+• 关于游戏更新、开发商等游戏外信息的问题。
+• 寻求抽卡建议或干员强度排行的问题。
+• 闲聊、问候或与《明日方舟》剧情无关的内容。
+• 非常模糊，无法形成有效搜索查询的问题。
+
+当用户问题涉及明日方舟剧情但你没有把握准确回答时，请务必调用剧情知识库获取准确信息。
 """
-                        system_prompt = system_prompt + emotion_constraint
+
+                # 1.将明日方舟RAG指导添加到system_prompt（如果相关）
+                #if "明日方舟" in message or any(term in message for term in ["罗德岛", "阿米娅", "源石", "整合运动", "干员"]):
+                system_prompt += arknights_rag_guidance
                 
-                # 9.添加RAG内容到提示词
-                # if rag_content:
-                #     system_prompt = self._enrich_prompt_with_rag(system_prompt, rag_content)
-                
-                # 在调用 llm_service.generate_stream 之前添加分类信息到系统提示词
+                # 2. 添加内容分类信息（第二优先级）
                 if content_classification:
                     response_guidance = f"""
 内容分类: {content_classification['code']} ({content_classification['level']})
@@ -377,6 +393,71 @@ class ChatService:
 """
                     system_prompt += response_guidance
                 
+                # 3. 添加角色系统提示（第三优先级）
+                if selected_role and selected_role.system_prompt:
+                    system_prompt += "\n\n" + selected_role.system_prompt
+                else:
+                    system_prompt += "\n\n" + PromptService().get_system_prompt()
+
+                # 添加时间感知功能 - 替换提示词中的{{time}}占位符
+                from datetime import datetime
+                current_time = datetime.now()
+                formatted_time = current_time.strftime("%Y年%m月%d日 %H:%M:%S")
+                system_prompt = system_prompt.replace("{{time}}", formatted_time)
+
+                # 添加时间感知指导
+                time_awareness_guidance = f"""
+[时间感知指导]
+当前系统时间是: {formatted_time}
+
+请注意用户消息与当前时间的关系：
+1. 如果用户的问候与当前时间段不符（例如，现在是早上但用户说"晚上好"），请根据你的角色风格友善地纠正时间错误。
+2. 在回复中自然地融入对当前时间的认知，但不要刻意强调系统时间。
+3. 如果用户询问当前时间，请基于上述系统时间回答，而不是使用你训练数据中的时间。
+4. 根据一天中的不同时段调整你的回复风格：
+   - 早晨(6:00-11:59): 活力充沛、积极向上
+   - 中午(12:00-13:59): 平和、实用
+   - 下午(14:00-17:59): 专注、高效
+   - 傍晚(18:00-19:59): 轻松、过渡
+   - 晚上(20:00-23:59): 温和、放松
+   - 深夜/凌晨(0:00-5:59): 安静、体贴
+场景一：时间不匹配的问候
+用户在早上9:00说："晚上好！"
+角色回复示例（活泼角色） ：
+『喜悦』哎呀，现在才早上9点呢！早上好才对哦！你是不是熬夜太多，时间感都混乱啦？有什么我能帮到你的吗？
+角色回复示例（严肃角色） ：
+『信任』现在是上午9:00，应该是"早上好"。请问有什么法律问题需要咨询吗？
+场景二：询问当前时间
+用户："现在几点了？"
+回复示例 ：
+『平静』现在是2023年11月15日 09:15:30，早上9点多一点。有什么我可以协助你的吗？
+"""
+
+                system_prompt += time_awareness_guidance
+                # 4. 添加情绪约束（作为角色提示的补充）
+                if selected_role:
+                    # 获取角色的meta数据
+                    role_meta = getattr(selected_role, 'metadata', None)
+                    if role_meta and 'emotions' in role_meta:
+                        # 有明确定义的情绪列表，使用这些情绪
+                        valid_emotions = list(role_meta.get('emotions', {}).keys())
+                    else:
+                        # 默认8种情绪
+                        valid_emotions = ["信任", "喜悦", "期待", "悲伤", "恐惧", "惊讶", "愤怒", "厌恶"]
+                    
+                    if valid_emotions:
+                        emotion_constraint = f"""
+请注意：回复时请严格使用以下{len(valid_emotions)}种情绪之一：
+{', '.join(valid_emotions)}
+情绪格式为『情绪』，例如『信任』、『悲伤』等。
+"""
+                        system_prompt += emotion_constraint
+                
+                
+                # 9.添加RAG内容到提示词
+                # if rag_content:
+                #     system_prompt = self._enrich_prompt_with_rag(system_prompt, rag_content)
+                
                 # 先定义函数变量
                 functions = [
                     self.function_caller.get_function_spec("classify_content"),
@@ -387,17 +468,14 @@ class ChatService:
                 ctx_logger.info(f"函数调用设置: {json.dumps([f.get('name') for f in functions]) if functions else 'None'}")
                 
                 # 处理RAG逻辑 - 用户输入处理阶段
-                force_rag = False
-                rag_content = None
                 clean_message = message
 
                 # 1. 用户强制触发RAG检测
-                rag_triggers = ["/rag", "!search", "#查询"]
+                rag_triggers = ["/rag", "#查询"]
                 ctx_logger.info(f"检测到强制RAG触发条件: {rag_triggers}")
 
                 for trigger in rag_triggers:
                     if message.strip().startswith(trigger):
-                        force_rag = True
                         clean_message = message.replace(trigger, "", 1).strip()
                         ctx_logger.info(f"检测到强制RAG触发: {trigger}")
                         
@@ -414,7 +492,7 @@ class ChatService:
                             # 添加连接日志
                             ctx_logger.info(f"连接RAG服务准备查询: {clean_message}")
                                                         
-                            async with asyncio.timeout(30):  # 30秒超时
+                            async with asyncio.timeout(130):  # 30秒超时
                                 ctx_logger.info("开始流式RAG检索...")
                                 full_rag_content = ""
                                 
@@ -443,18 +521,83 @@ class ChatService:
                                         'event': 'rag_thinking_completed',
                                         'message': '知识库检索完成'
                                     })
+
+                                    # 新增：先对RAG内容做总结
+                                    try:
+                                        ctx_logger.info('开始rag_summary流式总结')
+                                        rag_summary = ""
+                                        max_summary_length = 1024  # 或其它合适值
+                                        for summary_chunk in llm_service.generate_stream(
+                                            message=full_rag_content,
+                                            system_prompt=system_prompt,
+                                            temperature=0.3,
+                                            history=None,
+                                            functions=None
+                                        ):
+                                            if isinstance(summary_chunk, dict) and 'content' in summary_chunk:
+                                                summary_text = summary_chunk['content']
+                                                if len(rag_summary) > max_summary_length:
+                                                    ctx_logger.warning('rag_summary超长，强制截断')
+                                                    break
+                                                rag_summary += summary_text
+                                                ctx_logger.info(f"收到rag_summary内容1: {rag_summary}") 
+                                            elif isinstance(summary_chunk, str):
+                                                rag_summary += summary_chunk
+                                                ctx_logger.info(f"收到rag_summary内容2: {rag_summary}") 
+                                        ctx_logger.info('rag_summary流式总结循环结束')
+                                        ctx_logger.info(f"rag_summary3: {rag_summary}")
+                                        if rag_summary:
+                                            ctx_logger.info(f"RAG内容总结完成，长度: {len(rag_summary)}")
+                                            yield self.sse_formatter.format_sse({
+                                                'content': rag_summary,
+                                                'role_name': selected_role.role_name if selected_role else None
+                                            })
+                                        else:
+                                            ctx_logger.warning("RAG内容总结为空")
+                                    except Exception as e:
+                                        ctx_logger.error(f"rag_summary流式总结异常: {e}", exc_info=True)
                                     
-                                    # 更新系统提示
-                                    system_prompt = self._enrich_prompt_with_rag(system_prompt, full_rag_content)
+                                    # 更新系统提示，优先用rag_summary
+                                    if rag_summary:
+                                        system_prompt = self._enrich_prompt_with_rag(system_prompt, rag_summary)
+                                    else:
+                                        system_prompt = self._enrich_prompt_with_rag(system_prompt, full_rag_content)
                                     message = clean_message  # 更新消息，移除触发前缀
-                                else:
-                                    ctx_logger.warning("RAG检索未返回结果")
-                                    yield self.sse_formatter.format_sse({
-                                        'event': 'rag_retrieved',
-                                        'message': '知识库检索未找到相关内容',
-                                        'status': 'empty_result'
-                                    })
-                            
+
+                                    # 系统提示词已更新，包含RAG检索内容或其总结
+                                    ctx_logger.info(f"更新后的system_prompt: {system_prompt[:200]}...")
+
+                                    # 添加第二次LLM调用，使用更新后的system_prompt生成最终回答
+                                    ctx_logger.info("开始生成基于RAG结果的最终回复...")
+                                    async for final_chunk in llm_service.generate_stream(
+                                        message=message,
+                                        system_prompt=system_prompt,
+                                        temperature=0.7,
+                                        history=history,
+                                        # 不再传递functions参数，避免循环调用
+                                        functions=None
+                                    ):
+                                        if isinstance(final_chunk, dict) and 'content' in final_chunk:
+                                            # 累积内容
+                                            content_buffer += final_chunk['content']
+                                            response_data = {
+                                                'content': content_buffer,
+                                                'role_name': selected_role.role_name if selected_role else None,
+                                                'role_id': str(selected_role.role_id) if selected_role else None
+                                            }
+                                            yield self.sse_formatter.format_sse(response_data)
+                                        elif isinstance(final_chunk, str):
+                                            # 处理字符串响应
+                                            content_buffer += final_chunk
+                                            response_data = {
+                                                'content': content_buffer,
+                                                'role_name': selected_role.role_name if selected_role else None,
+                                                'role_id': str(selected_role.role_id) if selected_role else None
+                                            }
+                                            yield self.sse_formatter.format_sse(response_data)
+                                    # 跳过后续的function_call处理逻辑，因为我们已经生成了回复
+                                    continue
+                                
                         except asyncio.TimeoutError:
                             ctx_logger.error("RAG检索超时")
                             yield self.sse_formatter.format_sse({
@@ -476,13 +619,17 @@ class ChatService:
                 })
                 
                 # 流式生成并发送 - 大模型可能通过function_call调用RAG
+                ctx_logger.info(f"准备调用 LLM，message: '{message[:30]}...'")
+                ctx_logger.info(f"是否包含明日方舟关键词: {'是' if '明日方舟' in message or any(term in message for term in ['罗德岛', '阿米娅', '源石', '整合运动', '干员']) else '否'}")
+                ctx_logger.info(f"设置的 functions: {json.dumps([f.get('name') for f in functions]) if functions else 'None'}")
+                # 在调用 LLM 之前打印完整的 system_prompt
+                ctx_logger.info(f"完整的 system_prompt 发送给 LLM:\n{system_prompt}")
                 async for chunk in llm_service.generate_stream(
                     message=message,
                     system_prompt=system_prompt,
                     temperature=0.7,
                     history=history,
-                    rag_content=rag_content,  # 传入已获得的RAG内容(如果有)
-                    functions=functions,  # 大模型可通过这些函数决定是否触发RAG
+                    functions=functions,
                     function_call={"mode": "auto"},
                     function_call_params={
                         "content_classification": content_classification
@@ -491,142 +638,140 @@ class ChatService:
                         "action": content_classification["code"] if content_classification else "0"
                     } if content_classification else (filter_result.get("decision") if filter_result else None)
                 ):
-                    # 处理情绪和动作
+                    # 检查是否为function call相关内容并拦截
+                    is_function_call = False
+                    
                     if isinstance(chunk, dict):
-                        #ctx_logger.info(f"收到JSON响应: {json.dumps(chunk)}")
-                        # 从字典中直接获取emotion和action (如果API直接返回)
-                        emotion = chunk.get('emotion')
-                        action = chunk.get('action')
-                        
-                        # 如果没有直接返回情绪和动作，尝试从内容中提取
-                        if 'content' in chunk and not emotion:
-                            emotion = self._extract_emotion(chunk['content'])
-                            ctx_logger.debug(f"从内容中提取情绪: {emotion}")
-                        
-                        if 'content' in chunk and not action:
-                            action = self._extract_action(chunk['content'])
-                            ctx_logger.debug(f"从内容中提取动作: {action}")
-                        
-                        # 检测到新情绪
-                        if emotion and emotion != last_emotion:
-                            ctx_logger.info(f"发送情绪事件: {emotion}")
-                            yield self.sse_formatter.format_sse({
-                                "event": "emotion",
-                                "emotion": emotion,
-                                "role_name": selected_role.role_name if selected_role else None
-                            })
-                            last_emotion = emotion
-                        
-                        # 检测到新动作
-                        if action and action != last_action:
-                            ctx_logger.info(f"发送动作事件: {action}")
-                            yield self.sse_formatter.format_sse({
-                                "event": "action",
-                                "action": action,
-                                "role_name": selected_role.role_name if selected_role else None
-                            })
-                            last_action = action
-                        
-                        # 检查是否为函数调用响应
+                        # 检查顶层function_call或content中的function_call
                         if 'function_call' in chunk:
-                            function_call = chunk['function_call']
-                            function_name = function_call['name']
-                            function_args = json.loads(function_call['arguments'])
-                            
-                            # 执行函数调用
-                            function_result = await self.function_caller.call_function(
-                                function_name, 
-                                **function_args
-                            )
-                            
-                            # 处理不同类型的函数调用结果
-                            if function_name == "trigger_rag" and function_result.get("retrieved"):
-                                # 获取到RAG结果后，将其添加到系统提示中
-                                rag_content = function_result.get("data")
-                                if rag_content:
-                                    # 更新系统提示词
-                                    system_prompt = self._enrich_prompt_with_rag(system_prompt, rag_content)
-                                    
-                                    # 发送提示词更新事件
-                                    yield self.sse_formatter.format_sse({
-                                        'event': 'system_prompt_updated',
-                                        'prompt': system_prompt
-                                    })
-                            
-                            # 将函数结果发送到前端
-                            yield self.sse_formatter.format_sse({
-                                'event': 'function_result',
-                                'name': function_name,
-                                'result': function_result
-                            })
+                            is_function_call = True
+                            # 直接处理function_call，不发送给前端
+                            async for event in self._handle_function_call(
+                                chunk['function_call'], session_id, message, selected_role, history, system_prompt, llm_service
+                            ):
+                                yield event
+                            continue
                         
-                        # 处理内容
-                        if 'content' in chunk:
-                            current_text = chunk['content']
-                            #ctx_logger.info(f"current_text: {current_text}，content_buffer: {content_buffer} ，current_text.startswith(content_buffer): {current_text.startswith(content_buffer)}")
+                        # 检查content中是否包含function_call JSON
+                        if 'content' in chunk and isinstance(chunk['content'], str):
+                            content_str = chunk['content'].strip()
+                            if content_str.startswith("```json") and "function_call" in content_str:
+                                # 尝试提取function_call
+                                json_str_match = re.search(r"```json\s*(\{.*?\})\s*```", content_str, re.DOTALL)
+                                if json_str_match:
+                                    try:
+                                        parsed_json = json.loads(json_str_match.group(1))
+                                        if 'function_call' in parsed_json:
+                                            is_function_call = True
+                                            async for event in self._handle_function_call(
+                                                parsed_json['function_call'], session_id, message, selected_role, history, system_prompt, llm_service
+                                            ):
+                                                yield event
+                                            continue
+                                    except json.JSONDecodeError:
+                                        pass
+                    
+                    # 只处理非function_call的内容
+                    if not is_function_call:
+                        # 处理常规响应内容...
+                        if isinstance(chunk, dict) and 'content' in chunk:
+                            if model_type == 'deepseek':
+                                # 累积输出
+                                content_buffer += chunk['content']
+                                self.sent_content_cache[request_id] = content_buffer
+                                # 提取情绪和动作
+                                extracted_emotion = self._extract_emotion(content_buffer)
+                                if extracted_emotion and extracted_emotion != last_emotion:
+                                    ctx_logger.info(f"从内容中提取并发送情绪: {extracted_emotion}")
+                                    yield self.sse_formatter.format_sse({
+                                        "event": "emotion",
+                                        "emotion": extracted_emotion,
+                                        "role_name": selected_role.role_name if selected_role else None
+                                    })
+                                    last_emotion = extracted_emotion
+                                extracted_action = self._extract_action(content_buffer)
+                                if extracted_action and extracted_action != last_action:
+                                    ctx_logger.info(f"从内容中提取并发送动作: {extracted_action}")
+                                    yield self.sse_formatter.format_sse({
+                                        "event": "action",
+                                        "action": extracted_action,
+                                        "role_name": selected_role.role_name if selected_role else None
+                                    })
+                                    last_action = extracted_action
+                                # 发送累积内容
+                                response_data = {'content': content_buffer}
+                                if selected_role:
+                                    response_data['role_name'] = selected_role.role_name
+                                yield self.sse_formatter.format_sse(response_data)
+                            else:
+                                # 其它模型（包括千问）直接输出 chunk['content']
+                                current_text = chunk['content']
+                                self.sent_content_cache[request_id] = current_text
+                                # 提取情绪和动作
+                                extracted_emotion = self._extract_emotion(current_text)
+                                if extracted_emotion and extracted_emotion != last_emotion:
+                                    ctx_logger.info(f"从内容中提取并发送情绪: {extracted_emotion}")
+                                    yield self.sse_formatter.format_sse({
+                                        "event": "emotion",
+                                        "emotion": extracted_emotion,
+                                        "role_name": selected_role.role_name if selected_role else None
+                                    })
+                                    last_emotion = extracted_emotion
+                                extracted_action = self._extract_action(current_text)
+                                if extracted_action and extracted_action != last_action:
+                                    ctx_logger.info(f"从内容中提取并发送动作: {extracted_action}")
+                                    yield self.sse_formatter.format_sse({
+                                        "event": "action",
+                                        "action": extracted_action,
+                                        "role_name": selected_role.role_name if selected_role else None
+                                    })
+                                    last_action = extracted_action
+                                # 发送当前内容
+                                response_data = {'content': current_text}
+                                if selected_role:
+                                    response_data['role_name'] = selected_role.role_name
+                                yield self.sse_formatter.format_sse(response_data)
+                        elif isinstance(chunk, str):
                             # 自适应累积逻辑
                             # 检查当前文本是否已包含之前累积的内容
-                            if content_buffer and current_text.startswith(content_buffer):
+                            if content_buffer and chunk.startswith(content_buffer):
                                 # 千问模式: 模型自身已累积，直接使用当前文本
-                                content_buffer = current_text
+                                content_buffer = chunk
                             else:
                                 # Deepseek模式: 模型没有累积，需要手动累积
-                                content_buffer += current_text
-                                #ctx_logger.info(f"content_buffer: {content_buffer}")
+                                content_buffer += chunk
+                            
+                            # 更新缓存
                             self.sent_content_cache[request_id] = content_buffer
                             
+                            # 从字符串中尝试提取情绪和动作
+                            extracted_emotion = self._extract_emotion(content_buffer)
+                            if extracted_emotion and extracted_emotion != last_emotion:
+                                ctx_logger.info(f"从字符串中提取并发送情绪: {extracted_emotion}")
+                                yield self.sse_formatter.format_sse({
+                                    "event": "emotion",
+                                    "emotion": extracted_emotion,
+                                    "role_name": selected_role.role_name if selected_role else None
+                                })
+                                last_emotion = extracted_emotion
+                            
+                            extracted_action = self._extract_action(content_buffer)
+                            if extracted_action and extracted_action != last_action:
+                                ctx_logger.info(f"从字符串中提取并发送动作: {extracted_action}")
+                                yield self.sse_formatter.format_sse({
+                                    "event": "action",
+                                    "action": extracted_action,
+                                    "role_name": selected_role.role_name if selected_role else None
+                                })
+                                last_action = extracted_action
+                            
+                            # 发送文本内容
                             response_data = {
                                 'content': content_buffer,
                                 'role_name': selected_role.role_name if selected_role else None,
                                 'role_id': str(selected_role.role_id) if selected_role else None
                             }
                             yield self.sse_formatter.format_sse(response_data)
-                    
-                    # 字符串处理
-                    elif isinstance(chunk, str):
-                        current_text = chunk
-                        #ctx_logger.info(f"current_text: {current_text}，content_buffer: {content_buffer} ，current_text.startswith(content_buffer): {current_text.startswith(content_buffer)}")
-                        # 自适应累积逻辑
-                        # 检查当前文本是否已包含之前累积的内容
-                        if content_buffer and current_text.startswith(content_buffer):
-                            # 千问模式: 模型自身已累积，直接使用当前文本
-                            content_buffer = current_text
-                        else:
-                            # Deepseek模式: 模型没有累积，需要手动累积
-                            content_buffer += current_text
-                            #ctx_logger.info(f"content_buffer: {content_buffer}")
-                        
-                        # 更新缓存
-                        self.sent_content_cache[request_id] = content_buffer
-                        
-                        # 从字符串中尝试提取情绪和动作
-                        extracted_emotion = self._extract_emotion(current_text)
-                        if extracted_emotion and extracted_emotion != last_emotion:
-                            ctx_logger.info(f"从字符串中提取并发送情绪: {extracted_emotion}")
-                            yield self.sse_formatter.format_sse({
-                                "event": "emotion",
-                                "emotion": extracted_emotion,
-                                "role_name": selected_role.role_name if selected_role else None
-                            })
-                            last_emotion = extracted_emotion
-                        
-                        extracted_action = self._extract_action(current_text)
-                        if extracted_action and extracted_action != last_action:
-                            ctx_logger.info(f"从字符串中提取并发送动作: {extracted_action}")
-                            yield self.sse_formatter.format_sse({
-                                "event": "action",
-                                "action": extracted_action,
-                                "role_name": selected_role.role_name if selected_role else None
-                            })
-                            last_action = extracted_action
-                        
-                        # 发送文本内容
-                        response_data = {
-                            'content': content_buffer,
-                            'role_name': selected_role.role_name if selected_role else None,
-                            'role_id': str(selected_role.role_id) if selected_role else None
-                        }
-                        yield self.sse_formatter.format_sse(response_data)
                 
                 # 11. 保存助手回复
                 if content_buffer and selected_role:
@@ -847,3 +992,189 @@ class ChatService:
             logger.error(f"流式响应处理出错: {str(e)}", exc_info=True)
             logger.error(f"详细错误堆栈: {traceback.format_exc()}")
             yield {"error": str(e)}
+
+    # 添加新的函数处理function_call
+    async def _handle_function_call(self, function_call, session_id, message, selected_role, history, system_prompt, llm_service):
+        function_name = function_call.get('name')
+        function_args = self._parse_function_args(function_call.get('arguments', '{}'))
+        
+        # 发送function_call_start事件
+        yield self.sse_formatter.format_sse({
+            'event': 'function_call_start',
+            'name': function_name,
+            'args': function_args
+        })
+        
+        try:
+            # 执行函数调用
+            function_result = await self.function_caller.call_function(function_name, **function_args)
+            
+            # 处理RAG结果
+            if function_name == "trigger_rag":
+                # 检查RAG结果是否成功
+                if function_result and function_result.get("retrieved"):
+                    rag_data = function_result.get("data", "")
+                    
+                    if rag_data:
+                        # 发送thinking事件
+                        yield self.sse_formatter.format_sse({
+                            'event': 'thinking',
+                            'message': "正在从明日方舟知识库检索相关内容..."
+                        })
+                        
+                        # 分块发送RAG内容
+                        full_rag_content = ""
+                        chunk_size = 150
+                        for i in range(0, len(rag_data), chunk_size):
+                            chunk_content = rag_data[i:i+chunk_size]
+                            full_rag_content += chunk_content
+                            yield self.sse_formatter.format_sse({
+                                'event': 'thinking_content',
+                                'content': chunk_content,
+                                'type': 'rag_knowledge'
+                            })
+                            # 确保每个chunk可以立即显示
+                            await asyncio.sleep(0.1)
+                        
+                        # 发送检索完成事件
+                        yield self.sse_formatter.format_sse({
+                            'event': 'rag_thinking_completed',
+                            'message': '知识库检索完成'
+                        })
+                        
+                        # 发送函数结果事件
+                        yield self.sse_formatter.format_sse({
+                            'event': 'function_result',
+                            'name': function_name,
+                            'status': 'success',
+                            'has_data': True
+                        })
+                        
+                        try:
+                            # 更新系统提示词
+                            enriched_system_prompt = self._enrich_prompt_with_rag(system_prompt, full_rag_content)
+                            logger.info(f"准备进行第二次LLM调用，使用更新后的system_prompt (前100字符): {enriched_system_prompt[:100]}...")
+                            
+                            # 过滤历史消息，去除包含function_call的消息
+                            filtered_history = self._filter_function_call_messages(history)
+                            logger.info(f"过滤后的历史消息数量: {len(filtered_history)}")
+                            
+                            # 第二次LLM调用生成最终回答
+                            content_buffer = ""
+                            async for final_chunk in llm_service.generate_stream(
+                                message=message,
+                                system_prompt=enriched_system_prompt,
+                                temperature=0.7,
+                                history=filtered_history,  # 使用过滤后的历史
+                                functions=None  # 禁用函数调用，避免循环
+                            ):
+                                if isinstance(final_chunk, dict) and 'content' in final_chunk:
+                                    current_text = final_chunk['content']
+                                    response_data = {
+                                        'content': current_text,
+                                        'role_name': selected_role.role_name if selected_role else None,
+                                        'role_id': str(selected_role.role_id) if selected_role else None
+                                    }
+                                    yield self.sse_formatter.format_sse(response_data)
+                                    content_buffer = current_text
+                                elif isinstance(final_chunk, str):
+                                    content_buffer += final_chunk
+                                    response_data = {
+                                        'content': content_buffer,
+                                        'role_name': selected_role.role_name if selected_role else None,
+                                        'role_id': str(selected_role.role_id) if selected_role else None
+                                    }
+                                    yield self.sse_formatter.format_sse(response_data)
+                            
+                            logger.info(f"第二次LLM调用完成，生成内容长度: {len(content_buffer)}")
+                        except Exception as e:
+                            logger.error(f"第二次LLM调用失败: {str(e)}", exc_info=True)
+                            # 发送错误消息给用户
+                            yield self.sse_formatter.format_sse({
+                                'content': f"『信任』博士，我从知识库获取了罗德岛的信息，但处理时遇到了些问题。需要我重新试试吗？【握紧拳头】",
+                                'role_name': selected_role.role_name if selected_role else None,
+                                'role_id': str(selected_role.role_id) if selected_role else None
+                            })
+                    else:
+                        # 没有检索到数据
+                        yield self.sse_formatter.format_sse({
+                            'event': 'function_result',
+                            'name': function_name,
+                            'status': 'success',
+                            'has_data': False,
+                            'message': '未找到相关知识'
+                        })
+                        
+                        # 没有数据也需要给出回复
+                        yield self.sse_formatter.format_sse({
+                            'content': f"『信任』博士，我尝试查找关于罗德岛制药的故事，但没找到详细信息。需要我去调查更多情报吗？【挠头思考】",
+                            'role_name': selected_role.role_name if selected_role else None,
+                            'role_id': str(selected_role.role_id) if selected_role else None
+                        })
+                else:
+                    # RAG查询不成功
+                    yield self.sse_formatter.format_sse({
+                        'event': 'function_result',
+                        'name': function_name,
+                        'status': 'error',
+                        'error': '知识库查询失败'
+                    })
+                    
+                    # 查询失败也需要给出回复
+                    yield self.sse_formatter.format_sse({
+                        'content': f"『悲伤』查询知识库时出了点问题，暂时无法提供罗德岛的详细信息。【轻叹一声】",
+                        'role_name': selected_role.role_name if selected_role else None,
+                        'role_id': str(selected_role.role_id) if selected_role else None
+                    })
+            else:
+                # 其他函数调用的通用处理
+                yield self.sse_formatter.format_sse({
+                    'event': 'function_result',
+                    'name': function_name,
+                    'status': 'success',
+                    'data': function_result
+                })
+        except Exception as e:
+            logger.error(f"执行函数 {function_name} 失败: {str(e)}", exc_info=True)
+            # 异常处理
+            yield self.sse_formatter.format_sse({
+                'event': 'function_result',
+                'name': function_name,
+                'status': 'error',
+                'error': str(e)
+            })
+            
+            # 发生异常也需要给出回复
+            yield self.sse_formatter.format_sse({
+                'content': f"『悲伤』抱歉，我在处理这个问题时遇到了技术困难。【低头抱歉】",
+                'role_name': selected_role.role_name if selected_role else None,
+                'role_id': str(selected_role.role_id) if selected_role else None
+            })
+    
+    # 添加辅助方法解析函数参数
+    def _parse_function_args(self, args_str):
+        if isinstance(args_str, dict):
+            return args_str
+        
+        try:
+            return json.loads(args_str)
+        except:
+            return {}
+
+    # 添加新的辅助方法过滤历史消息中的function_call
+    def _filter_function_call_messages(self, history):
+        """过滤历史消息，去除包含function_call的消息"""
+        if not history:
+            return []
+        
+        filtered_history = []
+        for msg in history:
+            # 跳过包含function_call JSON格式的消息
+            if isinstance(msg, dict) and 'content' in msg and isinstance(msg['content'], str):
+                if '```json' in msg['content'] and '"function_call"' in msg['content']:
+                    logger.info(f"过滤掉包含function_call的历史消息")
+                    continue
+            # 保留其他消息
+            filtered_history.append(msg)
+        
+        return filtered_history

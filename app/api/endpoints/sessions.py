@@ -52,20 +52,21 @@ class SessionController:
         for i, role in enumerate(session.roles):
             logger.info(f"API response role {i}: id={role.role_id}, name={role.role_name}")
             if hasattr(role, 'system_prompt'):
-                logger.info(f"API role {i} system_prompt: {role.system_prompt or 'None'}")
+                #logger.info(f"API role {i} system_prompt: {role.system_prompt or 'None'}")
+                logger.info(f"API role {i} system_prompt: {len(role.system_prompt) or 'None'}")
             else:
                 logger.warning(f"API role {i} has no system_prompt attribute")
         
         # 检查model_dump后的数据
         session_dict = session.model_dump()
         logger.info(f"Session after model_dump - keys: {session_dict.keys()}")
-        if 'roles' in session_dict:
-            for i, role in enumerate(session_dict['roles']):
-                logger.info(f"Dumped role {i} keys: {role.keys()}")
-                if 'system_prompt' in role:
-                    logger.info(f"Dumped role {i} system_prompt: {role.get('system_prompt')}")
-                else:
-                    logger.warning(f"Dumped role {i} missing system_prompt key")
+        # if 'roles' in session_dict:
+        #     for i, role in enumerate(session_dict['roles']):
+        #         logger.info(f"Dumped role {i} keys: {role.keys()}")
+        #         if 'system_prompt' in role:
+        #             logger.info(f"Dumped role {i} system_prompt: {role.get('system_prompt')}")
+        #         else:
+        #             logger.warning(f"Dumped role {i} missing system_prompt key")
         
         return session
 
