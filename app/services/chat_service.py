@@ -332,7 +332,7 @@ class ChatService:
                 # 8. 构建系统提示词
                 # 首先初始化system_prompt为空字符串
                 system_prompt = ""
-                
+                role_prompt = ""
                 # 1. 添加明日方舟RAG指导（第一优先级）
                 arknights_rag_guidance = """
 [明日方舟剧情知识库功能 - 指令!]
@@ -396,9 +396,10 @@ class ChatService:
                 # 3. 添加角色系统提示（第三优先级）
                 if selected_role and selected_role.system_prompt:
                     system_prompt += "\n\n" + selected_role.system_prompt
+                    role_prompt = selected_role.system_prompt
                 else:
                     system_prompt += "\n\n" + PromptService().get_system_prompt()
-
+                    role_prompt = PromptService().get_system_prompt()
                 # 添加时间感知功能 - 替换提示词中的{{time}}占位符
                 from datetime import datetime
                 current_time = datetime.now()
@@ -498,12 +499,11 @@ class ChatService:
                                 
                                 # 直接迭代检索流
                                 async for rag_chunk in self.rag_service.retrieve_stream(clean_message):
-                                    ctx_logger.info(f"接收到RAG检索结果块: {len(str(rag_chunk))}字节")
+                                    #ctx_logger.info(f"接收到RAG检索结果块: {len(str(rag_chunk))}字节")
                                     
                                     # 获取增量内容
                                     content = rag_chunk.get("content", "")
                                     if content:
-                                        ctx_logger.debug(f"收到RAG内容: {content[:100]}...")  # 记录部分内容
                                         full_rag_content = rag_chunk.get("full_content", full_rag_content + content)
                                         ctx_logger.info(f"累积RAG内容长度: {len(full_rag_content)}")
                                         
@@ -527,7 +527,7 @@ class ChatService:
                                         ctx_logger.info('开始rag_summary流式总结')
                                         rag_summary = ""
                                         max_summary_length = 1024  # 或其它合适值
-                                        for summary_chunk in llm_service.generate_stream(
+                                        async for summary_chunk in llm_service.generate_stream(
                                             message=full_rag_content,
                                             system_prompt=system_prompt,
                                             temperature=0.3,
@@ -539,7 +539,7 @@ class ChatService:
                                                 if len(rag_summary) > max_summary_length:
                                                     ctx_logger.warning('rag_summary超长，强制截断')
                                                     break
-                                                rag_summary += summary_text
+                                                rag_summary = summary_text
                                                 ctx_logger.info(f"收到rag_summary内容1: {rag_summary}") 
                                             elif isinstance(summary_chunk, str):
                                                 rag_summary += summary_chunk
@@ -549,7 +549,8 @@ class ChatService:
                                         if rag_summary:
                                             ctx_logger.info(f"RAG内容总结完成，长度: {len(rag_summary)}")
                                             yield self.sse_formatter.format_sse({
-                                                'content': rag_summary,
+                                                'event': 'rag_summary',
+                                                'summary': rag_summary,
                                                 'role_name': selected_role.role_name if selected_role else None
                                             })
                                         else:
@@ -559,9 +560,9 @@ class ChatService:
                                     
                                     # 更新系统提示，优先用rag_summary
                                     if rag_summary:
-                                        system_prompt = self._enrich_prompt_with_rag(system_prompt, rag_summary)
+                                        role_prompt = self._enrich_prompt_with_rag(role_prompt, rag_summary)
                                     else:
-                                        system_prompt = self._enrich_prompt_with_rag(system_prompt, full_rag_content)
+                                        role_prompt = self._enrich_prompt_with_rag(role_prompt, full_rag_content)
                                     message = clean_message  # 更新消息，移除触发前缀
 
                                     # 系统提示词已更新，包含RAG检索内容或其总结
@@ -571,7 +572,7 @@ class ChatService:
                                     ctx_logger.info("开始生成基于RAG结果的最终回复...")
                                     async for final_chunk in llm_service.generate_stream(
                                         message=message,
-                                        system_prompt=system_prompt,
+                                        system_prompt=role_prompt,
                                         temperature=0.7,
                                         history=history,
                                         # 不再传递functions参数，避免循环调用
