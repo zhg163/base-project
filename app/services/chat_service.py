@@ -32,6 +32,44 @@ from app.utils.logging import logger, AILogger, LogContext, merge_extra_data
 class ChatService:
     """聊天服务，整合各个AI组件提供聊天功能"""
     
+    # 新增：function_call 规范指引
+    FUNCTION_CALL_GUIDANCE = '''
+当你判断需要调用剧情知识库时，**必须**使用 function_call 结构调用 trigger_rag 工具，而**不能**在 content 字段输出 trigger_rag(...) 相关字符串。
+
+调用规范如下：
+- 你必须用如下 JSON 结构输出工具调用：
+  {
+    "function_call": {
+      "name": "trigger_rag",
+      "arguments": "{\\\"query\\\": \\\"罗德岛制药 故事\\\"}"
+    }
+  }
+- 不要在 content 字段输出 trigger_rag(...) 字符串或相关内容。
+- 只有当你需要直接回复用户时，才在 content 字段输出自然语言内容。
+
+示例：
+- 用户问："介绍罗德岛制药的故事"
+  - 正确做法：输出 function_call 字段，内容如下：
+    {
+      "function_call": {
+        "name": "trigger_rag",
+        "arguments": "{\\\"query\\\": \\\"罗德岛制药 故事\\\"}"
+      }
+    }
+  - 错误做法：在 content 字段输出 trigger_rag(query="罗德岛制药 故事") 或类似内容。
+
+- 用户问："阿米娅有什么背景？"
+  - 正确做法：输出
+    {
+      "function_call": {
+        "name": "trigger_rag",
+        "arguments": "{\\\"query\\\": \\\"阿米娅 背景\\\", \\\"character_filter\\\": \\\"阿米娅\\\"}"
+      }
+    }
+
+请严格遵守以上规范。
+'''
+    
     def __init__(self, llm_service=None, session_service=None, role_selector=None, memory_service=None):
         """初始化聊天服务"""
         # 使用注入的依赖，而非尝试自创建
@@ -81,138 +119,6 @@ class ChatService:
                 logger.warning(f"RAG服务初始化失败: {str(e)}")
                 self.rag_service = None
     
-    async def process_message(self, message, session_id, user_id, user_name):
-        # 获取会话信息和所有角色
-        session = await self.session_service.get_session_by_id(session_id)
-        
-        # 使用角色选择器选择最相关角色
-        selected_role = await self.role_selector.select_most_relevant_role(
-            message, session.roles
-        )
-        
-        # 使用选中角色的system_prompt构建完整提示
-        prompt = self._build_prompt(message, selected_role)
-        
-        # 使用LLM生成响应
-        response = await self.llm_service.generate_streaming_response(prompt)
-        
-        return {
-            "role": selected_role.role_name,
-            "response": response
-        }
-    
-    async def process_message_stream(self,
-                                   message: str,
-                                   session_id: Optional[str] = None,
-                                   model_type: Optional[str] = None,
-                                   role_name: str = "assistant",
-                                   system_prompt: Optional[str] = None,
-                                   temperature: float = 0.7) -> AsyncGenerator[str, None]:
-        """流式处理用户消息并返回AI回复"""
-        # 使用导入的全局logger替代ctx_logger
-        # 在方法内部处理默认值
-        model_type = os.getenv("DEFAULT_MODEL_TYPE", "deepseek")
-
-        # 生成会话ID
-        if not session_id:
-            session_id = str(uuid.uuid4())
-        
-        # 生成唯一的请求ID作为缓存键
-        request_id = f"{session_id}:{uuid.uuid4()}"
-        self.sent_content_cache[request_id] = ""
-        
-        try:
-            # 获取LLM服务
-            llm_service = LLMFactory().get_llm_service(model_type)
-            
-            # 获取会话和选择角色
-            selected_role = None
-            if session_id:
-                session = await self.session_service.get_session_by_id(session_id)
-                if session and session.roles:
-                    # 选择最相关角色
-                    selected_role = await self.role_selector.select_most_relevant_role(
-                        message, session.roles
-                    )
-                    
-                    # 步骤1: 先通知前端已选择的角色
-                    if selected_role:
-                        selection_notice = {
-                            "event": "role_selected",
-                            "role_name": selected_role.role_name,
-                            "role_id": selected_role.role_id
-                        }
-                        yield f"data: {json.dumps(selection_notice)}\n\n"
-                        
-                        # 使用选中角色的system_prompt
-                        if selected_role.system_prompt:
-                            system_prompt = selected_role.system_prompt
-                            role_name = selected_role.role_name
-                
-            # 如果没有获取到system_prompt，使用默认的
-            if not system_prompt:
-                system_prompt = PromptService().get_system_prompt(role_name)
-            
-            # 流式生成
-            async with asyncio.timeout(30):  # 添加30秒超时
-                async for chunk in llm_service.generate_stream(
-                    message=message,
-                    system_prompt=system_prompt,
-                    temperature=temperature,
-                    history=None,  # 步骤1不包含历史记录功能
-                    functions=[
-                        self.function_caller.get_function_spec("classify_content"),
-                        self.function_caller.get_function_spec("trigger_rag")
-                    ] if self.function_caller else None,
-                    function_call={"mode": "auto"},
-                    filter_decision={
-                        "action": "0"
-                    }
-                ):
-                    # 处理chunk
-                    if isinstance(chunk, dict):
-                        logger.info(f"收到JSON响应: {json.dumps(chunk)}")
-                        if 'content' in chunk:
-                            # 获取当前完整文本
-                            current_text = chunk['content']
-                            
-                            # 更新缓存
-                            self.sent_content_cache[request_id] = current_text
-                            
-                            # 发送完整累积内容，而不是只发送新增部分
-                            response_data = {'content': current_text}
-                            if selected_role:
-                                response_data['role_name'] = selected_role.role_name
-                            yield self.sse_formatter.format_sse(response_data)
-                        else:
-                            # 非内容事件直接发送
-                            if selected_role:
-                                chunk['role_name'] = selected_role.role_name
-                            yield f"data: {json.dumps(chunk)}\n\n"
-                    else:
-                        # 字符串类型处理
-                        current_text = str(chunk)
-                        sent_text = self.sent_content_cache.get(request_id, "")
-                        new_text = current_text[len(sent_text):]
-                        
-                        # 更新缓存
-                        self.sent_content_cache[request_id] = current_text
-                        
-                        # 只发送增量部分
-                        if new_text:
-                            response_data = {'content': new_text}
-                            if selected_role:
-                                response_data['role_name'] = selected_role.role_name
-                            yield f"data: {json.dumps(response_data)}\n\n"
-            
-            # 清理缓存
-            if request_id in self.sent_content_cache:
-                del self.sent_content_cache[request_id]
-            
-        except Exception as e:
-            # 错误也需要格式化为SSE
-            error_data = {'error': {'message': f"流式生成错误: {str(e)}"}}
-            yield f"data: {json.dumps(error_data)}\n\n"
 
     async def chat_stream(
         self, 
@@ -372,8 +278,7 @@ class ChatService:
 """
 
                 # 1.将明日方舟RAG指导添加到system_prompt（如果相关）
-                #if "明日方舟" in message or any(term in message for term in ["罗德岛", "阿米娅", "源石", "整合运动", "干员"]):
-                system_prompt += arknights_rag_guidance
+                system_prompt += self.FUNCTION_CALL_GUIDANCE + "\n" + arknights_rag_guidance
                 
                 # 2. 添加内容分类信息（第二优先级）
                 if content_classification:
@@ -471,147 +376,147 @@ class ChatService:
                 # 处理RAG逻辑 - 用户输入处理阶段
                 clean_message = message
 
-                # 1. 用户强制触发RAG检测
-                rag_triggers = ["/rag", "#查询"]
-                ctx_logger.info(f"检测到强制RAG触发条件: {rag_triggers}")
+                # # 1. 用户强制触发RAG检测
+                # rag_triggers = ["/rag", "#查询"]
+                # ctx_logger.info(f"检测到强制RAG触发条件: {rag_triggers}")
 
-                for trigger in rag_triggers:
-                    if message.strip().startswith(trigger):
-                        clean_message = message.replace(trigger, "", 1).strip()
-                        ctx_logger.info(f"检测到强制RAG触发: {trigger}")
+                # for trigger in rag_triggers:
+                #     if message.strip().startswith(trigger):
+                #         clean_message = message.replace(trigger, "", 1).strip()
+                #         ctx_logger.info(f"检测到强制RAG触发: {trigger}")
                         
-                        # 检查RAG服务配置
-                        if not hasattr(self, 'rag_service') or not self.rag_service:
-                            yield self.sse_formatter.format_sse({
-                                'event': 'error',
-                                'message': '知识库服务未配置，请联系管理员'
-                            })
-                            break
+                #         # 检查RAG服务配置
+                #         if not hasattr(self, 'rag_service') or not self.rag_service:
+                #             yield self.sse_formatter.format_sse({
+                #                 'event': 'error',
+                #                 'message': '知识库服务未配置，请联系管理员'
+                #             })
+                #             break
                         
-                        # 直接调用RAG服务
-                        try:
-                            # 添加连接日志
-                            ctx_logger.info(f"连接RAG服务准备查询: {clean_message}")
+                #         # 直接调用RAG服务
+                #         try:
+                #             # 添加连接日志
+                #             ctx_logger.info(f"连接RAG服务准备查询: {clean_message}")
                                                         
-                            async with asyncio.timeout(130):  # 30秒超时
-                                ctx_logger.info("开始流式RAG检索...")
-                                full_rag_content = ""
+                #             async with asyncio.timeout(130):  # 30秒超时
+                #                 ctx_logger.info("开始流式RAG检索...")
+                #                 full_rag_content = ""
                                 
-                                # 直接迭代检索流
-                                async for rag_chunk in self.rag_service.retrieve_stream(clean_message):
-                                    #ctx_logger.info(f"接收到RAG检索结果块: {len(str(rag_chunk))}字节")
+                #                 # 直接迭代检索流
+                #                 async for rag_chunk in self.rag_service.retrieve_stream(clean_message):
+                #                     #ctx_logger.info(f"接收到RAG检索结果块: {len(str(rag_chunk))}字节")
                                     
-                                    # 获取增量内容
-                                    content = rag_chunk.get("content", "")
-                                    if content:
-                                        full_rag_content = rag_chunk.get("full_content", full_rag_content + content)
-                                        ctx_logger.info(f"累积RAG内容长度: {len(full_rag_content)}")
+                #                     # 获取增量内容
+                #                     content = rag_chunk.get("content", "")
+                #                     if content:
+                #                         full_rag_content = rag_chunk.get("full_content", full_rag_content + content)
+                #                         ctx_logger.info(f"累积RAG内容长度: {len(full_rag_content)}")
                                         
-                                        # 发送思考内容事件
-                                        yield self.sse_formatter.format_sse({
-                                            'event': 'thinking_content',
-                                            'content': content,
-                                            'type': 'rag_knowledge'
-                                        })
+                #                         # 发送思考内容事件
+                #                         yield self.sse_formatter.format_sse({
+                #                             'event': 'thinking_content',
+                #                             'content': content,
+                #                             'type': 'rag_knowledge'
+                #                         })
                                 
-                                # 检索完成
-                                if full_rag_content:
-                                    ctx_logger.info(f"RAG流式检索完成，获取内容长度: {len(full_rag_content)}")
-                                    yield self.sse_formatter.format_sse({
-                                        'event': 'rag_thinking_completed',
-                                        'message': '知识库检索完成'
-                                    })
+                #                 # 检索完成
+                #                 if full_rag_content:
+                #                     ctx_logger.info(f"RAG流式检索完成，获取内容长度: {len(full_rag_content)}")
+                #                     yield self.sse_formatter.format_sse({
+                #                         'event': 'rag_thinking_completed',
+                #                         'message': '知识库检索完成'
+                #                     })
 
-                                    # 新增：先对RAG内容做总结
-                                    try:
-                                        ctx_logger.info('开始rag_summary流式总结')
-                                        rag_summary = ""
-                                        max_summary_length = 1024  # 或其它合适值
-                                        async for summary_chunk in llm_service.generate_stream(
-                                            message=full_rag_content,
-                                            system_prompt=system_prompt,
-                                            temperature=0.3,
-                                            history=None,
-                                            functions=None
-                                        ):
-                                            if isinstance(summary_chunk, dict) and 'content' in summary_chunk:
-                                                summary_text = summary_chunk['content']
-                                                if len(rag_summary) > max_summary_length:
-                                                    ctx_logger.warning('rag_summary超长，强制截断')
-                                                    break
-                                                rag_summary = summary_text
-                                                ctx_logger.info(f"收到rag_summary内容1: {rag_summary}") 
-                                            elif isinstance(summary_chunk, str):
-                                                rag_summary += summary_chunk
-                                                ctx_logger.info(f"收到rag_summary内容2: {rag_summary}") 
-                                        ctx_logger.info('rag_summary流式总结循环结束')
-                                        ctx_logger.info(f"rag_summary3: {rag_summary}")
-                                        if rag_summary:
-                                            ctx_logger.info(f"RAG内容总结完成，长度: {len(rag_summary)}")
-                                            yield self.sse_formatter.format_sse({
-                                                'event': 'rag_summary',
-                                                'summary': rag_summary,
-                                                'role_name': selected_role.role_name if selected_role else None
-                                            })
-                                        else:
-                                            ctx_logger.warning("RAG内容总结为空")
-                                    except Exception as e:
-                                        ctx_logger.error(f"rag_summary流式总结异常: {e}", exc_info=True)
+                #                     # 新增：先对RAG内容做总结
+                #                     try:
+                #                         ctx_logger.info('开始rag_summary流式总结')
+                #                         rag_summary = ""
+                #                         max_summary_length = 1024  # 或其它合适值
+                #                         async for summary_chunk in llm_service.generate_stream(
+                #                             message=full_rag_content,
+                #                             system_prompt=system_prompt,
+                #                             temperature=0.3,
+                #                             history=None,
+                #                             functions=None
+                #                         ):
+                #                             if isinstance(summary_chunk, dict) and 'content' in summary_chunk:
+                #                                 summary_text = summary_chunk['content']
+                #                                 if len(rag_summary) > max_summary_length:
+                #                                     ctx_logger.warning('rag_summary超长，强制截断')
+                #                                     break
+                #                                 rag_summary = summary_text
+                #                                 ctx_logger.info(f"收到rag_summary内容1: {rag_summary}") 
+                #                             elif isinstance(summary_chunk, str):
+                #                                 rag_summary += summary_chunk
+                #                                 ctx_logger.info(f"收到rag_summary内容2: {rag_summary}") 
+                #                         ctx_logger.info('rag_summary流式总结循环结束')
+                #                         ctx_logger.info(f"rag_summary3: {rag_summary}")
+                #                         if rag_summary:
+                #                             ctx_logger.info(f"RAG内容总结完成，长度: {len(rag_summary)}")
+                #                             yield self.sse_formatter.format_sse({
+                #                                 'event': 'rag_summary',
+                #                                 'summary': rag_summary,
+                #                                 'role_name': selected_role.role_name if selected_role else None
+                #                             })
+                #                         else:
+                #                             ctx_logger.warning("RAG内容总结为空")
+                #                     except Exception as e:
+                #                         ctx_logger.error(f"rag_summary流式总结异常: {e}", exc_info=True)
                                     
-                                    # 更新系统提示，优先用rag_summary
-                                    if rag_summary:
-                                        role_prompt = self._enrich_prompt_with_rag(role_prompt, rag_summary)
-                                    else:
-                                        role_prompt = self._enrich_prompt_with_rag(role_prompt, full_rag_content)
-                                    message = clean_message  # 更新消息，移除触发前缀
+                #                     # 更新系统提示，优先用rag_summary
+                #                     if rag_summary:
+                #                         role_prompt = self._enrich_prompt_with_rag(role_prompt, rag_summary)
+                #                     else:
+                #                         role_prompt = self._enrich_prompt_with_rag(role_prompt, full_rag_content)
+                #                     message = clean_message  # 更新消息，移除触发前缀
 
-                                    # 系统提示词已更新，包含RAG检索内容或其总结
-                                    ctx_logger.info(f"更新后的system_prompt: {system_prompt[:200]}...")
+                #                     # 系统提示词已更新，包含RAG检索内容或其总结
+                #                     ctx_logger.info(f"更新后的system_prompt: {system_prompt[:200]}...")
 
-                                    # 添加第二次LLM调用，使用更新后的system_prompt生成最终回答
-                                    ctx_logger.info("开始生成基于RAG结果的最终回复...")
-                                    async for final_chunk in llm_service.generate_stream(
-                                        message=message,
-                                        system_prompt=role_prompt,
-                                        temperature=0.7,
-                                        history=history,
-                                        # 不再传递functions参数，避免循环调用
-                                        functions=None
-                                    ):
-                                        if isinstance(final_chunk, dict) and 'content' in final_chunk:
-                                            # 累积内容
-                                            content_buffer += final_chunk['content']
-                                            response_data = {
-                                                'content': content_buffer,
-                                                'role_name': selected_role.role_name if selected_role else None,
-                                                'role_id': str(selected_role.role_id) if selected_role else None
-                                            }
-                                            yield self.sse_formatter.format_sse(response_data)
-                                        elif isinstance(final_chunk, str):
-                                            # 处理字符串响应
-                                            content_buffer += final_chunk
-                                            response_data = {
-                                                'content': content_buffer,
-                                                'role_name': selected_role.role_name if selected_role else None,
-                                                'role_id': str(selected_role.role_id) if selected_role else None
-                                            }
-                                            yield self.sse_formatter.format_sse(response_data)
-                                    # 跳过后续的function_call处理逻辑，因为我们已经生成了回复
-                                    continue
+                #                     # 添加第二次LLM调用，使用更新后的system_prompt生成最终回答
+                #                     ctx_logger.info("开始生成基于RAG结果的最终回复...")
+                #                     async for final_chunk in llm_service.generate_stream(
+                #                         message=message,
+                #                         system_prompt=role_prompt,
+                #                         temperature=0.7,
+                #                         history=history,
+                #                         # 不再传递functions参数，避免循环调用
+                #                         functions=None
+                #                     ):
+                #                         if isinstance(final_chunk, dict) and 'content' in final_chunk:
+                #                             # 累积内容
+                #                             content_buffer += final_chunk['content']
+                #                             response_data = {
+                #                                 'content': content_buffer,
+                #                                 'role_name': selected_role.role_name if selected_role else None,
+                #                                 'role_id': str(selected_role.role_id) if selected_role else None
+                #                             }
+                #                             yield self.sse_formatter.format_sse(response_data)
+                #                         elif isinstance(final_chunk, str):
+                #                             # 处理字符串响应
+                #                             content_buffer += final_chunk
+                #                             response_data = {
+                #                                 'content': content_buffer,
+                #                                 'role_name': selected_role.role_name if selected_role else None,
+                #                                 'role_id': str(selected_role.role_id) if selected_role else None
+                #                             }
+                #                             yield self.sse_formatter.format_sse(response_data)
+                #                     # 跳过后续的function_call处理逻辑，因为我们已经生成了回复
+                #                     continue
                                 
-                        except asyncio.TimeoutError:
-                            ctx_logger.error("RAG检索超时")
-                            yield self.sse_formatter.format_sse({
-                                'event': 'error',
-                                'message': '知识库检索超时'
-                            })
-                        except Exception as e:
-                            ctx_logger.error(f"RAG检索失败: {str(e)}")
-                            yield self.sse_formatter.format_sse({
-                                'event': 'error',
-                                'message': '知识库检索失败'
-                            })
-                        break
+                #         except asyncio.TimeoutError:
+                #             ctx_logger.error("RAG检索超时")
+                #             yield self.sse_formatter.format_sse({
+                #                 'event': 'error',
+                #                 'message': '知识库检索超时'
+                #             })
+                #         except Exception as e:
+                #             ctx_logger.error(f"RAG检索失败: {str(e)}")
+                #             yield self.sse_formatter.format_sse({
+                #                 'event': 'error',
+                #                 'message': '知识库检索失败'
+                #             })
+                #         break
                 
                 # 思考结束，开始生成最终回复
                 yield self.sse_formatter.format_sse({
@@ -631,7 +536,7 @@ class ChatService:
                     temperature=0.7,
                     history=history,
                     functions=functions,
-                    function_call={"mode": "auto"},
+                    function_call={"mode": "auto", "response_format": "json_object"},
                     function_call_params={
                         "content_classification": content_classification
                     } if content_classification else None,
@@ -642,35 +547,51 @@ class ChatService:
                     # 检查是否为function call相关内容并拦截
                     is_function_call = False
                     
+                    logger.info(f"[FunctionCall Debug] 收到chunk内容: {str(chunk)}")
                     if isinstance(chunk, dict):
-                        # 检查顶层function_call或content中的function_call
+                        ctx_logger.info(f"chunk keys: {list(chunk.keys())}")
+                        # 检查顶层function_call
                         if 'function_call' in chunk:
                             is_function_call = True
-                            # 直接处理function_call，不发送给前端
+                            ctx_logger.info(f"检测到顶层function_call: {chunk['function_call']}")
+                            ctx_logger.info("准备进入 _handle_function_call (顶层)...")
                             async for event in self._handle_function_call(
-                                chunk['function_call'], session_id, message, selected_role, history, system_prompt, llm_service
+                                chunk['function_call'], session_id, message, selected_role, history, system_prompt, llm_service, model_type
                             ):
                                 yield event
+                            ctx_logger.info("已退出 _handle_function_call (顶层).")
                             continue
                         
                         # 检查content中是否包含function_call JSON
                         if 'content' in chunk and isinstance(chunk['content'], str):
                             content_str = chunk['content'].strip()
-                            if content_str.startswith("```json") and "function_call" in content_str:
-                                # 尝试提取function_call
-                                json_str_match = re.search(r"```json\s*(\{.*?\})\s*```", content_str, re.DOTALL)
-                                if json_str_match:
-                                    try:
-                                        parsed_json = json.loads(json_str_match.group(1))
-                                        if 'function_call' in parsed_json:
-                                            is_function_call = True
-                                            async for event in self._handle_function_call(
-                                                parsed_json['function_call'], session_id, message, selected_role, history, system_prompt, llm_service
-                                            ):
-                                                yield event
-                                            continue
-                                    except json.JSONDecodeError:
-                                        pass
+                            # 优化：仅当看起来像完整的JSON对象并且包含"function_call"时才尝试解析
+                            if content_str.startswith("{") and content_str.endswith("}") and "\"function_call\"" in content_str:
+                                ctx_logger.info(f"尝试将content内容解析为JSON (可能包含function_call): '{content_str}'")
+                                try:
+                                    parsed_json = json.loads(content_str)
+                                    if 'function_call' in parsed_json:
+                                        is_function_call = True
+                                        actual_fc_data = parsed_json['function_call']
+                                        ctx_logger.info(f"从content成功解析出function_call: {actual_fc_data}")
+                                        ctx_logger.info("准备进入 _handle_function_call (来自content)...")
+                                        async for event in self._handle_function_call(
+                                            actual_fc_data, session_id, message,
+                                            selected_role, history, system_prompt, llm_service, model_type
+                                        ):
+                                            yield event
+                                        ctx_logger.info("已退出 _handle_function_call (来自content).")
+                                        continue
+                                    else:
+                                        ctx_logger.warning(f"content解析为JSON，但缺少'function_call'键. Parsed: {parsed_json}")
+                                except json.JSONDecodeError as json_err:
+                                    ctx_logger.error(f"JSONDecodeError: 解析content为JSON失败. Content: '{content_str}'. Error: {json_err}", exc_info=True)
+                                    # 此处不应pass，因为如果它是最后一个块且意图是FC，则表示模型输出格式错误
+                            elif "function_call" in content_str:  # 不仅仅检查"\"function_call\""
+                                # 任何包含function_call关键字的内容都视为function_call相关
+                                ctx_logger.debug(f"Content包含function_call关键字: '{content_str}'")
+                                is_function_call = True
+                                continue  # 跳过输出
                     
                     # 只处理非function_call的内容
                     if not is_function_call:
@@ -848,17 +769,6 @@ class ChatService:
             logger.error(f"聊天请求处理出错: {str(e)}")
             return {"error": str(e)}
 
-    # 新增辅助方法，提取RAG内容获取逻辑
-    async def _get_rag_content(self, message: str) -> Optional[str]:
-        """获取RAG内容，提取为单独方法避免重复执行"""
-        try:
-            rag_decision = await self.rag_router.should_trigger_rag(message)
-            if rag_decision.should_trigger and hasattr(self, 'rag_service') and self.rag_service:
-                return await self.rag_service.retrieve_stream(message)
-        except Exception as e:
-            logger.warning(f"RAG路由失败: {str(e)}")
-        return None
-
     # 新增辅助方法，将RAG内容融入提示词
     def _enrich_prompt_with_rag(self, system_prompt: str, rag_content: str) -> str:
         """将RAG内容融入系统提示词"""
@@ -898,235 +808,173 @@ class ChatService:
             return action
         return None
 
-    async def handle_message(self, session_id: str, message: str, user_id: str = None, user_name: str = None, role_name: str = "assistant", **kwargs):
-        """处理用户消息并生成回复"""
-        logger.info(f"开始处理消息: session_id={session_id}, 消息长度={len(message)}")
-        
-        # 保存用户消息到记忆
-        await self.memory_service.add_user_message(
-            session_id=session_id,
-            message=message,
-            user_id=user_id,
-            user_name=user_name
-        )
-        logger.info(f"用户消息已保存到记忆: user_id={user_id}, user_name={user_name}")
-        
-        # 获取消息历史用于上下文
-        message_history = await self.memory_service.build_message_history(session_id)
-        logger.info(f"从记忆服务获取到 {len(message_history)} 条历史消息")
-        
-        # 获取角色系统提示
-        system_prompt = await self._get_system_prompt(session_id, role_name)
-        logger.info(f"获取角色[{role_name}]系统提示，长度={len(system_prompt)}")
-        
-        # 在这里添加历史和系统提示合并的详细日志
-        system_message = {"role": "system", "content": system_prompt}
-        messages_with_system = [system_message] + message_history
-        
-        # 详细记录完整的消息结构
-        logger.info(f"完整提示结构: 系统提示({len(system_prompt)}字符) + {len(message_history)}条历史消息")
-        logger.info(f"发送到LLM的总消息数: {len(messages_with_system)}")
-        logger.info(f"发送到LLM的总字符数: {sum(len(m['content']) for m in messages_with_system)}")
-        
-        # 调用LLM服务前记录详情
-        logger.info(f"调用LLM服务: stream={kwargs.get('stream', False)}, 消息摘要={message[:30]}...")
-        
-        # 调用LLM服务
-        response = await self.llm_service.generate_stream(
-            message=message,
-            system_prompt=system_prompt,
-            temperature=0.7,
-            history=message_history
-        )
-        return response
 
-    async def stream_response(self, session_id, user_message, role_id=None, role_name="assistant"):
-        """流式响应处理方法，返回累积的内容而不是增量"""
-        try:
-            # 获取会话和角色信息
-            session = await self._get_session(session_id)
-            if not session:
-                yield {"error": "会话不存在"}
-                return
-            
-            # 获取LLM服务
-            llm_service = LLMFactory().get_llm_service()
-            
-            # 获取历史消息
-            history = await self.memory_service.build_message_history(session_id)
-            logger.info("将历史消息添加到LLM上下文", extra={"data": {"message_count": len(history)}})
-            
-            # 获取系统提示
-            system_prompt = await self._get_system_prompt(session_id, role_name)
-            
-            # 生成响应流
-            response_stream = await llm_service.generate_stream(
-                message=user_message,
-                system_prompt=system_prompt,
-                temperature=0.7,
-                history=history
-            )
-            
-            # 累积响应内容
-            accumulated_content = ""
-            
-            async for chunk in response_stream:
-                if chunk:
-                    accumulated_content += chunk
-                    yield {
-                        "content": accumulated_content,  # 返回累积内容而非仅增量
-                        "role_name": role_name,
-                        "role_id": role_id  # 确保role_id被包含
-                    }
-            
-            # 保存助手回复到记忆
-            if accumulated_content:
-                await self.memory_service.add_assistant_message(
-                    session_id,
-                    accumulated_content,
-                    role_name=role_name,
-                    role_id=role_id
-                )
-            
-        except Exception as e:
-            import traceback
-            logger.error(f"流式响应处理出错: {str(e)}", exc_info=True)
-            logger.error(f"详细错误堆栈: {traceback.format_exc()}")
-            yield {"error": str(e)}
 
     # 添加新的函数处理function_call
-    async def _handle_function_call(self, function_call, session_id, message, selected_role, history, system_prompt, llm_service):
-        function_name = function_call.get('name')
-        function_args = self._parse_function_args(function_call.get('arguments', '{}'))
+    async def _handle_function_call(self, function_call_data: Dict[str, Any], session_id: str, original_user_message: str, selected_role: Optional[Role], history: List[Dict[str, str]], system_prompt_context: str, llm_service_instance: Any, model_type: str = 'deepseek'):
+        logger.info(f"[[============ Entered _handle_function_call ============]]") # 醒目的入口日志
+        logger.info(f"原始 function_call_data: {function_call_data}")
+
+        function_name = function_call_data.get('name')
+        raw_args_str = function_call_data.get('arguments', '{}') # arguments 应该是字符串
+
+        logger.info(f"Function_call - 名称: {function_name}, 原始参数字符串: '{raw_args_str}'")
+
+        if not function_name:
+            logger.error("Function_call 缺少 'name' 字段.")
+            yield self.sse_formatter.format_sse({
+                'event': 'function_result', 'name': None, 'status': 'error', 'error': "Function call missing 'name'."
+            })
+            return
+
+        logger.info(f"准备解析参数 for {function_name} from: '{raw_args_str}'")
+        function_args = self._parse_function_args(raw_args_str) # _parse_function_args 处理 string -> dict
+        
+        # 校验 _parse_function_args 的返回值
+        if not isinstance(function_args, dict):
+            error_msg = f"参数解析内部错误: _parse_function_args 未能将 '{raw_args_str}' 解析为字典, 得到类型 {type(function_args)}."
+            logger.error(error_msg)
+            yield self.sse_formatter.format_sse({
+                'event': 'function_result', 'name': function_name, 'status': 'error', 'error': error_msg
+            })
+            return
+        logger.info(f"Function_call - 解析后参数 for {function_name}: {function_args}")
         
         # 发送function_call_start事件
+        logger.info(f"准备发送 function_call_start 事件 for {function_name}")
         yield self.sse_formatter.format_sse({
             'event': 'function_call_start',
             'name': function_name,
-            'args': function_args
+            'args': function_args # 发送已解析的字典参数
         })
+        logger.info(f"已发送 function_call_start 事件 for {function_name}")
         
         try:
             # 执行函数调用
+            logger.info(f"准备调用 self.function_caller.call_function for {function_name} with args: {function_args}")
+            if not self.function_caller:
+                logger.error("self.function_caller 未初始化!")
+                raise AttributeError("FunctionCaller service not initialized.")
+
             function_result = await self.function_caller.call_function(function_name, **function_args)
+            logger.info(f"Function_call - {function_name} 执行结果: {str(function_result)[:200]}...") # 截断过长结果
             
             # 处理RAG结果
-            if function_name == "trigger_rag":
-                # 检查RAG结果是否成功
-                if function_result and function_result.get("retrieved"):
-                    rag_data = function_result.get("data", "")
+            if function_name == "trigger_rag" and function_result and function_result.get("retrieved"):
+                rag_data = function_result.get("data", "")
+                if rag_data:
+                    # 1. 分块流式输出 rag_knowledge
+                    chunk_size = 150
+                    for i in range(0, len(rag_data), chunk_size):
+                        chunk_content = rag_data[i:i+chunk_size]
+                        yield self.sse_formatter.format_sse({
+                            'event': 'thinking_content',
+                            'content': chunk_content,
+                            'type': 'rag_knowledge'
+                        })
+                    yield self.sse_formatter.format_sse({
+                        'event': 'rag_thinking_completed',
+                        'message': '知识库检索完成'
+                    })
                     
-                    if rag_data:
-                        # 发送thinking事件
-                        yield self.sse_formatter.format_sse({
-                            'event': 'thinking',
-                            'message': "正在从明日方舟知识库检索相关内容..."
-                        })
-                        
-                        # 分块发送RAG内容
-                        full_rag_content = ""
-                        chunk_size = 150
-                        for i in range(0, len(rag_data), chunk_size):
-                            chunk_content = rag_data[i:i+chunk_size]
-                            full_rag_content += chunk_content
-                            yield self.sse_formatter.format_sse({
-                                'event': 'thinking_content',
-                                'content': chunk_content,
-                                'type': 'rag_knowledge'
-                            })
-                            # 确保每个chunk可以立即显示
-                            await asyncio.sleep(0.1)
-                        
-                        # 发送检索完成事件
-                        yield self.sse_formatter.format_sse({
-                            'event': 'rag_thinking_completed',
-                            'message': '知识库检索完成'
-                        })
-                        
-                        # 发送函数结果事件
-                        yield self.sse_formatter.format_sse({
-                            'event': 'function_result',
-                            'name': function_name,
-                            'status': 'success',
-                            'has_data': True
-                        })
-                        
-                        try:
-                            # 更新系统提示词
-                            enriched_system_prompt = self._enrich_prompt_with_rag(system_prompt, full_rag_content)
-                            logger.info(f"准备进行第二次LLM调用，使用更新后的system_prompt (前100字符): {enriched_system_prompt[:100]}...")
+                    # 2. 生成最终回复
+                    enriched_prompt = self._enrich_prompt_with_rag(system_prompt_context, rag_data)
+                    # 添加明确指示，防止模型输出 function_call 格式
+                    enriched_prompt += "\n\n重要：请用自然语言回答用户问题，直接给出内容，不要输出JSON格式或function_call格式。\n"
+                    
+                    content_buffer = ""
+                    last_emotion = None
+                    last_action = None
+                    
+                    async for chunk in llm_service_instance.generate_stream(
+                        message=original_user_message,
+                        system_prompt=enriched_prompt,
+                        temperature=0.7,
+                        history=history,
+                        functions=None
+                    ):
+                        if isinstance(chunk, dict) and 'content' in chunk:
+                            # 区分千问和其他模型的处理方式
+                            if model_type == 'qianwen':
+                                # 千问模型自身会累积内容，不需要手动累加
+                                content_buffer = chunk['content']
+                            else:
+                                # 其他模型(如deepseek)需要手动累积
+                                content_buffer += chunk['content']
+                                
+                            # 更新缓存，这部分保持不变
+                            self.sent_content_cache[session_id] = content_buffer
                             
-                            # 过滤历史消息，去除包含function_call的消息
-                            filtered_history = self._filter_function_call_messages(history)
-                            logger.info(f"过滤后的历史消息数量: {len(filtered_history)}")
-                            
-                            # 第二次LLM调用生成最终回答
-                            content_buffer = ""
-                            async for final_chunk in llm_service.generate_stream(
-                                message=message,
-                                system_prompt=enriched_system_prompt,
-                                temperature=0.7,
-                                history=filtered_history,  # 使用过滤后的历史
-                                functions=None  # 禁用函数调用，避免循环
-                            ):
-                                if isinstance(final_chunk, dict) and 'content' in final_chunk:
-                                    current_text = final_chunk['content']
-                                    response_data = {
-                                        'content': current_text,
-                                        'role_name': selected_role.role_name if selected_role else None,
-                                        'role_id': str(selected_role.role_id) if selected_role else None
-                                    }
-                                    yield self.sse_formatter.format_sse(response_data)
-                                    content_buffer = current_text
-                                elif isinstance(final_chunk, str):
-                                    content_buffer += final_chunk
-                                    response_data = {
-                                        'content': content_buffer,
-                                        'role_name': selected_role.role_name if selected_role else None,
-                                        'role_id': str(selected_role.role_id) if selected_role else None
-                                    }
-                                    yield self.sse_formatter.format_sse(response_data)
-                            
-                            logger.info(f"第二次LLM调用完成，生成内容长度: {len(content_buffer)}")
-                        except Exception as e:
-                            logger.error(f"第二次LLM调用失败: {str(e)}", exc_info=True)
-                            # 发送错误消息给用户
-                            yield self.sse_formatter.format_sse({
-                                'content': f"『信任』博士，我从知识库获取了罗德岛的信息，但处理时遇到了些问题。需要我重新试试吗？【握紧拳头】",
+                            # 情绪和动作提取逻辑保持不变
+                            extracted_emotion = self._extract_emotion(chunk['content'])
+                            if extracted_emotion and extracted_emotion != last_emotion:
+                                logger.info(f"从RAG回复中提取并发送情绪: {extracted_emotion}")
+                                last_emotion = extracted_emotion
+                                yield self.sse_formatter.format_sse({
+                                    "event": "emotion",
+                                    "emotion": extracted_emotion,
+                                    "role_name": selected_role.role_name if selected_role else None
+                                })
+                                
+                            extracted_action = self._extract_action(chunk['content'])
+                            if extracted_action and extracted_action != last_action:
+                                logger.info(f"从RAG回复中提取并发送动作: {extracted_action}")
+                                last_action = extracted_action
+                                yield self.sse_formatter.format_sse({
+                                    "event": "action",
+                                    "action": extracted_action,
+                                    "role_name": selected_role.role_name if selected_role else None
+                                })
+                                
+                            response_data = {
+                                'content': content_buffer,
                                 'role_name': selected_role.role_name if selected_role else None,
                                 'role_id': str(selected_role.role_id) if selected_role else None
-                            })
-                    else:
-                        # 没有检索到数据
-                        yield self.sse_formatter.format_sse({
-                            'event': 'function_result',
-                            'name': function_name,
-                            'status': 'success',
-                            'has_data': False,
-                            'message': '未找到相关知识'
-                        })
-                        
-                        # 没有数据也需要给出回复
-                        yield self.sse_formatter.format_sse({
-                            'content': f"『信任』博士，我尝试查找关于罗德岛制药的故事，但没找到详细信息。需要我去调查更多情报吗？【挠头思考】",
-                            'role_name': selected_role.role_name if selected_role else None,
-                            'role_id': str(selected_role.role_id) if selected_role else None
-                        })
-                else:
-                    # RAG查询不成功
-                    yield self.sse_formatter.format_sse({
-                        'event': 'function_result',
-                        'name': function_name,
-                        'status': 'error',
-                        'error': '知识库查询失败'
-                    })
-                    
-                    # 查询失败也需要给出回复
-                    yield self.sse_formatter.format_sse({
-                        'content': f"『悲伤』查询知识库时出了点问题，暂时无法提供罗德岛的详细信息。【轻叹一声】",
-                        'role_name': selected_role.role_name if selected_role else None,
-                        'role_id': str(selected_role.role_id) if selected_role else None
-                    })
+                            }
+                            yield self.sse_formatter.format_sse(response_data)
+                        elif isinstance(chunk, str):
+                            # 字符串响应处理也需要区分模型类型
+                            if model_type == 'deepseek':
+                                # deepseek 模型 - 累积内容
+                                content_buffer += chunk
+                                # 提取情绪和动作
+                                extracted_emotion = self._extract_emotion(chunk)
+                                if extracted_emotion and extracted_emotion != last_emotion:
+                                    logger.info(f"从RAG回复字符串中提取并发送情绪: {extracted_emotion}")
+                                    yield self.sse_formatter.format_sse({
+                                        "event": "emotion",
+                                        "emotion": extracted_emotion,
+                                        "role_name": selected_role.role_name if selected_role else None
+                                    })
+                                    last_emotion = extracted_emotion
+                                
+                                extracted_action = self._extract_action(chunk)
+                                if extracted_action and extracted_action != last_action:
+                                    logger.info(f"从RAG回复字符串中提取并发送动作: {extracted_action}")
+                                    yield self.sse_formatter.format_sse({
+                                        "event": "action",
+                                        "action": extracted_action,
+                                        "role_name": selected_role.role_name if selected_role else None
+                                    })
+                                    last_action = extracted_action
+                                
+                                response_data = {
+                                    'content': content_buffer,
+                                    'role_name': selected_role.role_name if selected_role else None,
+                                    'role_id': str(selected_role.role_id) if selected_role else None
+                                }
+                                yield self.sse_formatter.format_sse(response_data)
+                            else:
+                                # 千问等其他模型 - 直接使用当前块
+                                # ... 情绪处理代码 ...
+                                
+                                response_data = {
+                                    'content': chunk,  # 直接使用当前块内容
+                                    'role_name': selected_role.role_name if selected_role else None,
+                                    'role_id': str(selected_role.role_id) if selected_role else None
+                                }
+                                yield self.sse_formatter.format_sse(response_data)
+                    return  # 结束本次 functioncall 处理
             else:
                 # 其他函数调用的通用处理
                 yield self.sse_formatter.format_sse({
@@ -1153,29 +1001,29 @@ class ChatService:
             })
     
     # 添加辅助方法解析函数参数
-    def _parse_function_args(self, args_str):
-        if isinstance(args_str, dict):
+    def _parse_function_args(self, args_str: str) -> Dict[str, Any]: # 明确参数类型
+        if isinstance(args_str, dict): # 如果已经是dict（不太可能来自模型原始输出，但做个保护）
+            logger.warning(f"_parse_function_args 接收到已是字典的参数: {args_str}")
             return args_str
         
-        try:
-            return json.loads(args_str)
-        except:
-            return {}
+        # 确保 args_str 是字符串类型
+        if not isinstance(args_str, str):
+            ctx_logger.error(f"_parse_function_args 期望字符串参数，但收到类型 {type(args_str)}: {args_str}")
+            return {"error": "Invalid argument format: expected a string."} # 返回错误信息或抛出异常
 
-    # 添加新的辅助方法过滤历史消息中的function_call
-    def _filter_function_call_messages(self, history):
-        """过滤历史消息，去除包含function_call的消息"""
-        if not history:
-            return []
-        
-        filtered_history = []
-        for msg in history:
-            # 跳过包含function_call JSON格式的消息
-            if isinstance(msg, dict) and 'content' in msg and isinstance(msg['content'], str):
-                if '```json' in msg['content'] and '"function_call"' in msg['content']:
-                    logger.info(f"过滤掉包含function_call的历史消息")
-                    continue
-            # 保留其他消息
-            filtered_history.append(msg)
-        
-        return filtered_history
+        logger.info(f"准备用 json.loads 解析参数字符串: '{args_str}'")
+        try:
+            parsed_args = json.loads(args_str)
+            if not isinstance(parsed_args, dict):
+                logger.error(f"json.loads 解析参数成功，但结果非字典类型: {type(parsed_args)}, from '{args_str}'")
+                return {"error": f"Parsed arguments not a dictionary: {type(parsed_args)}"}
+            logger.info(f"参数字符串成功解析为字典: {parsed_args}")
+            return parsed_args
+        except json.JSONDecodeError as e:
+            logger.error(f"json.loads 解析参数字符串失败: '{args_str}'. Error: {e}", exc_info=True)
+            return {"error": f"JSONDecodeError: {e}"} # 返回包含错误信息的字典
+        except Exception as e: # 捕获其他可能的异常
+            logger.error(f"解析参数字符串时发生未知错误: '{args_str}'. Error: {e}", exc_info=True)
+            return {"error": f"Unknown error parsing arguments: {e}"}
+
+ 

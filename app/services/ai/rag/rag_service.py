@@ -45,7 +45,7 @@ class RAGService:
     async def retrieve_stream(self, query: str) -> AsyncGenerator[Dict[str, Any], None]:
         """流式检索方法，使用RAGFlow接口返回SSE流"""
         url = f"{self.api_url}/api/v1/chats_openai/{self.chat_id}/chat/completions"
-        
+        print(f"RAGFlow接口 url: {url}")
         headers = {
             "Content-Type": "application/json",
             "Authorization": f"Bearer {self.api_key}"
@@ -71,6 +71,7 @@ class RAGService:
                     buffer = ""
                     async for line in response.content:
                         line = line.decode('utf-8').strip()
+                        print(f"收到line: {line}")
                         if not line or not line.startswith('data:'):
                             continue
                             
@@ -107,18 +108,3 @@ class RAGService:
         except Exception as e:
             self.logger.error(f"检索失败: {str(e)}")
             yield {"event": "error", "message": str(e)} 
-
-    # async def health_check(self) -> bool:
-    #     """检查RAG服务是否可用"""
-    #     try:
-    #         # 简单检查，尝试连接API
-    #         async with aiohttp.ClientSession() as session:
-    #             async with session.get(
-    #                 f"{self.api_url}/api/v1/status", 
-    #                 headers={"Authorization": f"Bearer {self.api_key}"},
-    #                 timeout=3
-    #             ) as response:
-    #                 return response.status == 200
-    #     except Exception as e:
-    #         self.logger.error(f"RAG服务健康检查失败: {str(e)}")
-    #         return False 

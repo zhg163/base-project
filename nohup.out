@@ -1,0 +1,380 @@
+INFO:     Will watch for changes in these directories: ['/Users/zhg/gitws/base-project']
+INFO:     Uvicorn running on http://0.0.0.0:8888 (Press CTRL+C to quit)
+INFO:     Started reloader process [72921] using StatReload
+INFO 日志系统已初始化为简化格式 [time=2025-05-21 15:44:39,970, module=main, func=<module>, line=23]
+INFO Application AI项目 initialized [time=2025-05-21 15:44:39,982, module=main, func=<module>, line=51]
+INFO Starting application AI项目 v0.1.0 [time=2025-05-21 15:44:39,982, module=events, func=start_app, line=13]
+INFO Starting application AI项目 v0.1.0 [time=2025-05-21 15:44:39,982, module=events, func=start_app, line=13]
+INFO Initializing database connections... [time=2025-05-21 15:44:39,982, module=events, func=start_app, line=26]
+INFO Initializing database connections... [time=2025-05-21 15:44:39,982, module=events, func=start_app, line=26]
+INFO MongoDB service initialized with URI: mongodb://root:***@localhost:27017/ai_project?authSource=admin, DB: ai_project [time=2025-05-21 15:44:39,982, module=mongo_service, func=__init__, line=35]
+INFO Creating new MongoDB connection to mongodb://root:***@localhost:27017/ai_project?authSource=admin [time=2025-05-21 15:44:39,982, module=mongo_service, func=client, line=42]
+INFO MongoDB connection established successfully [time=2025-05-21 15:44:39,993, module=mongo_service, func=client, line=47]
+INFO MongoDB connected, available collections: ['users', 'sessions', 'message_history', 'roles'] [time=2025-05-21 15:44:39,994, module=events, func=start_app, line=41]
+INFO MongoDB connected, available collections: ['users', 'sessions', 'message_history', 'roles'] [time=2025-05-21 15:44:39,994, module=events, func=start_app, line=41]
+INFO Application startup complete [time=2025-05-21 15:44:39,994, module=events, func=start_app, line=47]
+INFO Application startup complete [time=2025-05-21 15:44:39,994, module=events, func=start_app, line=47]
+INFO Request started: GET /static/session_manager.html [time=2025-05-21 15:44:42,349, module=logging, func=dispatch, line=28]
+INFO Request started: GET /static/session_manager.html [time=2025-05-21 15:44:42,349, module=logging, func=dispatch, line=28]
+INFO Request completed: GET /static/session_manager.html 304 [time=2025-05-21 15:44:42,351, module=logging, func=dispatch, line=70]
+INFO Request completed: GET /static/session_manager.html 304 [time=2025-05-21 15:44:42,351, module=logging, func=dispatch, line=70]
+INFO Request started: GET /api/roles [time=2025-05-21 15:44:42,459, module=logging, func=dispatch, line=28]
+INFO Request started: GET /api/roles [time=2025-05-21 15:44:42,459, module=logging, func=dispatch, line=28]
+INFO MongoDB service initialized with URI: mongodb://root:***@localhost:27017/ai_project?authSource=admin, DB: ai_project [time=2025-05-21 15:44:42,460, module=mongo_service, func=__init__, line=35]
+INFO Creating new MongoDB connection to mongodb://root:***@localhost:27017/ai_project?authSource=admin [time=2025-05-21 15:44:42,460, module=mongo_service, func=client, line=42]
+INFO MongoDB connection established successfully [time=2025-05-21 15:44:42,468, module=mongo_service, func=client, line=47]
+INFO Request completed: GET /api/roles 200 [time=2025-05-21 15:44:42,483, module=logging, func=dispatch, line=70]
+INFO Request completed: GET /api/roles 200 [time=2025-05-21 15:44:42,483, module=logging, func=dispatch, line=70]
+INFO Request started: GET /favicon.ico [time=2025-05-21 15:44:42,483, module=logging, func=dispatch, line=28]
+INFO Request started: GET /favicon.ico [time=2025-05-21 15:44:42,483, module=logging, func=dispatch, line=28]
+WARNING Request completed: GET /favicon.ico 404 [time=2025-05-21 15:44:42,483, module=logging, func=dispatch, line=70]
+WARNING Request completed: GET /favicon.ico 404 [time=2025-05-21 15:44:42,483, module=logging, func=dispatch, line=70]
+INFO Request started: GET /api/users [time=2025-05-21 15:44:42,505, module=logging, func=dispatch, line=28]
+INFO Request started: GET /api/users [time=2025-05-21 15:44:42,505, module=logging, func=dispatch, line=28]
+INFO MongoDB service initialized with URI: mongodb://root:***@localhost:27017/ai_project?authSource=admin, DB: ai_project [time=2025-05-21 15:44:42,505, module=mongo_service, func=__init__, line=35]
+INFO Creating new MongoDB connection to mongodb://root:***@localhost:27017/ai_project?authSource=admin [time=2025-05-21 15:44:42,505, module=mongo_service, func=client, line=42]
+INFO MongoDB connection established successfully [time=2025-05-21 15:44:42,514, module=mongo_service, func=client, line=47]
+INFO Request completed: GET /api/users 200 [time=2025-05-21 15:44:42,515, module=logging, func=dispatch, line=70]
+INFO Request completed: GET /api/users 200 [time=2025-05-21 15:44:42,515, module=logging, func=dispatch, line=70]
+INFO Request started: GET /api/custom-sessions [time=2025-05-21 15:44:42,518, module=logging, func=dispatch, line=28]
+INFO Request started: GET /api/custom-sessions [time=2025-05-21 15:44:42,518, module=logging, func=dispatch, line=28]
+INFO MongoDB service initialized with URI: mongodb://root:***@localhost:27017/ai_project?authSource=admin, DB: ai_project [time=2025-05-21 15:44:42,518, module=mongo_service, func=__init__, line=35]
+INFO Creating new MongoDB connection to mongodb://root:***@localhost:27017/ai_project?authSource=admin [time=2025-05-21 15:44:42,518, module=mongo_service, func=client, line=42]
+INFO MongoDB connection established successfully [time=2025-05-21 15:44:42,524, module=mongo_service, func=client, line=47]
+INFO Request completed: GET /api/custom-sessions 200 [time=2025-05-21 15:44:42,526, module=logging, func=dispatch, line=70]
+INFO Request completed: GET /api/custom-sessions 200 [time=2025-05-21 15:44:42,526, module=logging, func=dispatch, line=70]
+INFO Request started: GET /static/chat.html [time=2025-05-21 15:44:44,542, module=logging, func=dispatch, line=28]
+INFO Request started: GET /static/chat.html [time=2025-05-21 15:44:44,542, module=logging, func=dispatch, line=28]
+INFO Request completed: GET /static/chat.html 200 [time=2025-05-21 15:44:44,543, module=logging, func=dispatch, line=70]
+INFO Request completed: GET /static/chat.html 200 [time=2025-05-21 15:44:44,543, module=logging, func=dispatch, line=70]
+INFO Request started: GET /api/custom-sessions/ce4abb8dec7a53a3db756c0db0b5e6c9 [time=2025-05-21 15:44:44,593, module=logging, func=dispatch, line=28]
+INFO Request started: GET /api/custom-sessions/ce4abb8dec7a53a3db756c0db0b5e6c9 [time=2025-05-21 15:44:44,593, module=logging, func=dispatch, line=28]
+INFO Redis service initialized for localhost:6378 db:0 [time=2025-05-21 15:44:44,595, module=redis_service, func=__init__, line=56]
+INFO MongoDB service initialized with URI: mongodb://root:***@localhost:27017/ai_project?authSource=admin, DB: ai_project [time=2025-05-21 15:44:44,595, module=mongo_service, func=__init__, line=35]
+INFO Retrieved session from DB: ce4abb8dec7a53a3db756c0db0b5e6c9 [time=2025-05-21 15:44:44,598, module=session_service, func=get_session_by_id, line=102]
+INFO Role 0 in session: id=68261ff5de77722bf9fdcbad, name=阿米娅 [time=2025-05-21 15:44:44,598, module=session_service, func=get_session_by_id, line=105]
+INFO Role 0 has system_prompt: Yes [time=2025-05-21 15:44:44,598, module=session_service, func=get_session_by_id, line=108]
+INFO Role 1 in session: id=68261ff5de77722bf9fdcbac, name=能天使 [time=2025-05-21 15:44:44,598, module=session_service, func=get_session_by_id, line=105]
+INFO Role 1 has system_prompt: Yes [time=2025-05-21 15:44:44,598, module=session_service, func=get_session_by_id, line=108]
+INFO Role 2 in session: id=68261ff5de77722bf9fdcba9, name=杜林 [time=2025-05-21 15:44:44,598, module=session_service, func=get_session_by_id, line=105]
+INFO Role 2 has system_prompt: Yes [time=2025-05-21 15:44:44,598, module=session_service, func=get_session_by_id, line=108]
+INFO Role 3 in session: id=68261ff5de77722bf9fdcbaa, name=食铁兽 [time=2025-05-21 15:44:44,598, module=session_service, func=get_session_by_id, line=105]
+INFO Role 3 has system_prompt: Yes [time=2025-05-21 15:44:44,598, module=session_service, func=get_session_by_id, line=108]
+INFO Role 4 in session: id=68261ff5de77722bf9fdcbb4, name=幽灵鲨 [time=2025-05-21 15:44:44,598, module=session_service, func=get_session_by_id, line=105]
+INFO Role 4 has system_prompt: Yes [time=2025-05-21 15:44:44,599, module=session_service, func=get_session_by_id, line=108]
+INFO Session to be returned in API: ce4abb8dec7a53a3db756c0db0b5e6c9 [time=2025-05-21 15:44:44,599, module=sessions, func=get_session, line=51]
+INFO API response role 0: id=68261ff5de77722bf9fdcbad, name=阿米娅 [time=2025-05-21 15:44:44,599, module=sessions, func=get_session, line=53]
+INFO API role 0 system_prompt: 1151 [time=2025-05-21 15:44:44,599, module=sessions, func=get_session, line=56]
+INFO API response role 1: id=68261ff5de77722bf9fdcbac, name=能天使 [time=2025-05-21 15:44:44,599, module=sessions, func=get_session, line=53]
+INFO API role 1 system_prompt: 2803 [time=2025-05-21 15:44:44,599, module=sessions, func=get_session, line=56]
+INFO API response role 2: id=68261ff5de77722bf9fdcba9, name=杜林 [time=2025-05-21 15:44:44,599, module=sessions, func=get_session, line=53]
+INFO API role 2 system_prompt: 2800 [time=2025-05-21 15:44:44,599, module=sessions, func=get_session, line=56]
+INFO API response role 3: id=68261ff5de77722bf9fdcbaa, name=食铁兽 [time=2025-05-21 15:44:44,599, module=sessions, func=get_session, line=53]
+INFO API role 3 system_prompt: 2401 [time=2025-05-21 15:44:44,599, module=sessions, func=get_session, line=56]
+INFO API response role 4: id=68261ff5de77722bf9fdcbb4, name=幽灵鲨 [time=2025-05-21 15:44:44,599, module=sessions, func=get_session, line=53]
+INFO API role 4 system_prompt: 2962 [time=2025-05-21 15:44:44,599, module=sessions, func=get_session, line=56]
+INFO Session after model_dump - keys: dict_keys(['id', 'created_at', 'updated_at', 'class_id', 'class_name', 'user_id', 'user_name', 'roles', 'session_id', 'is_active']) [time=2025-05-21 15:44:44,599, module=sessions, func=get_session, line=62]
+INFO Request completed: GET /api/custom-sessions/ce4abb8dec7a53a3db756c0db0b5e6c9 200 [time=2025-05-21 15:44:44,599, module=logging, func=dispatch, line=70]
+INFO Request completed: GET /api/custom-sessions/ce4abb8dec7a53a3db756c0db0b5e6c9 200 [time=2025-05-21 15:44:44,599, module=logging, func=dispatch, line=70]
+WARNING:  StatReload detected changes in 'app/services/chat_service.py'. Reloading...
+INFO Shutting down application AI项目 [time=2025-05-21 15:45:43,933, module=events, func=stop_app, line=57]
+INFO Shutting down application AI项目 [time=2025-05-21 15:45:43,933, module=events, func=stop_app, line=57]
+INFO Application shutdown complete [time=2025-05-21 15:45:43,933, module=events, func=stop_app, line=62]
+INFO Application shutdown complete [time=2025-05-21 15:45:43,933, module=events, func=stop_app, line=62]
+INFO 日志系统已初始化为简化格式 [time=2025-05-21 15:45:44,790, module=main, func=<module>, line=23]
+INFO Application AI项目 initialized [time=2025-05-21 15:45:44,807, module=main, func=<module>, line=51]
+INFO Starting application AI项目 v0.1.0 [time=2025-05-21 15:45:44,808, module=events, func=start_app, line=13]
+INFO Starting application AI项目 v0.1.0 [time=2025-05-21 15:45:44,808, module=events, func=start_app, line=13]
+INFO Initializing database connections... [time=2025-05-21 15:45:44,808, module=events, func=start_app, line=26]
+INFO Initializing database connections... [time=2025-05-21 15:45:44,808, module=events, func=start_app, line=26]
+INFO MongoDB service initialized with URI: mongodb://root:***@localhost:27017/ai_project?authSource=admin, DB: ai_project [time=2025-05-21 15:45:44,808, module=mongo_service, func=__init__, line=35]
+INFO Creating new MongoDB connection to mongodb://root:***@localhost:27017/ai_project?authSource=admin [time=2025-05-21 15:45:44,808, module=mongo_service, func=client, line=42]
+INFO MongoDB connection established successfully [time=2025-05-21 15:45:44,821, module=mongo_service, func=client, line=47]
+INFO MongoDB connected, available collections: ['users', 'sessions', 'message_history', 'roles'] [time=2025-05-21 15:45:44,822, module=events, func=start_app, line=41]
+INFO MongoDB connected, available collections: ['users', 'sessions', 'message_history', 'roles'] [time=2025-05-21 15:45:44,822, module=events, func=start_app, line=41]
+INFO Application startup complete [time=2025-05-21 15:45:44,822, module=events, func=start_app, line=47]
+INFO Application startup complete [time=2025-05-21 15:45:44,822, module=events, func=start_app, line=47]
+INFO Request started: GET /api/llm/chatstream [time=2025-05-21 15:46:13,104, module=logging, func=dispatch, line=28]
+INFO Request started: GET /api/llm/chatstream [time=2025-05-21 15:46:13,104, module=logging, func=dispatch, line=28]
+INFO MongoDB service initialized with URI: mongodb://root:***@localhost:27017/ai_project?authSource=admin, DB: ai_project [time=2025-05-21 15:46:13,105, module=mongo_service, func=__init__, line=35]
+INFO Redis service initialized for localhost:6378 db:0 [time=2025-05-21 15:46:13,105, module=redis_service, func=__init__, line=56]
+INFO MongoDB service initialized with URI: mongodb://root:***@localhost:27017/ai_project?authSource=admin, DB: ai_project [time=2025-05-21 15:46:13,105, module=mongo_service, func=__init__, line=35]
+INFO 千问服务初始化完成，使用模型: qwen-max [time=2025-05-21 15:46:13,105, module=qianwen_service, func=__init__, line=31]
+INFO 千问服务初始化完成，使用模型: qwen-max [time=2025-05-21 15:46:13,105, module=qianwen_service, func=__init__, line=31]
+INFO 开发模式状态: False [time=2025-05-21 15:46:13,105, module=qianwen_service, func=__init__, line=35]
+INFO 开发模式状态: False [time=2025-05-21 15:46:13,105, module=qianwen_service, func=__init__, line=35]
+INFO QianwenService 初始化完成 [time=2025-05-21 15:46:13,105, module=qianwen_service, func=initialize, line=43]
+INFO QianwenService 初始化完成 [time=2025-05-21 15:46:13,105, module=qianwen_service, func=initialize, line=43]
+INFO Redis service initialized for localhost:6378 db:0 [time=2025-05-21 15:46:13,106, module=redis_service, func=__init__, line=56]
+INFO 初始化Redis记忆服务，TTL=172800秒 [time=2025-05-21 15:46:13,106, module=redis_memory, func=__init__, line=26]
+INFO 初始化Redis记忆服务，TTL=172800秒 [time=2025-05-21 15:46:13,106, module=redis_memory, func=__init__, line=26]
+INFO MongoDB service initialized with URI: mongodb://root:***@localhost:27017/ai_project?authSource=admin, DB: ai_project [time=2025-05-21 15:46:13,106, module=mongo_service, func=__init__, line=35]
+INFO 初始化MongoDB消息备份服务，集合=message_history [time=2025-05-21 15:46:13,106, module=mongo_backup, func=__init__, line=23]
+INFO 初始化MongoDB消息备份服务，集合=message_history [time=2025-05-21 15:46:13,106, module=mongo_backup, func=__init__, line=23]
+INFO 记忆服务初始化完成，最大上下文长度=1000 [time=2025-05-21 15:46:13,106, module=memory_service, func=__init__, line=56]
+INFO 记忆服务初始化完成，最大上下文长度=1000 [time=2025-05-21 15:46:13,106, module=memory_service, func=__init__, line=56]
+INFO 聊天服务初始化完成 [time=2025-05-21 15:46:13,106, module=chat_service, func=__init__, line=91]
+INFO 敏感内容分类器初始化 [time=2025-05-21 15:46:13,106, module=sensitive_classifier, func=__init__, line=10]
+INFO 敏感内容分类器初始化 [time=2025-05-21 15:46:13,106, module=sensitive_classifier, func=__init__, line=10]
+INFO RAG路由器初始化完成 [time=2025-05-21 15:46:13,106, module=rag_router, func=__init__, line=19]
+INFO RAG路由器初始化完成 [time=2025-05-21 15:46:13,106, module=rag_router, func=__init__, line=19]
+INFO 高级功能初始化完成 [time=2025-05-21 15:46:13,106, module=chat_service, func=__init__, line=102]
+INFO RAG服务初始化完成 [time=2025-05-21 15:46:13,106, module=rag_service, func=__init__, line=17]
+INFO RAG服务初始化完成 [time=2025-05-21 15:46:13,106, module=rag_service, func=__init__, line=17]
+INFO RAG服务初始化完成 [time=2025-05-21 15:46:13,106, module=chat_service, func=__init__, line=117]
+INFO 进入chat_stream方法 [time=2025-05-21 15:46:13,106, module=chat_service, func=chat_stream, line=138]
+INFO Creating new MongoDB connection to mongodb://root:***@localhost:27017/ai_project?authSource=admin [time=2025-05-21 15:46:13,106, module=mongo_service, func=client, line=42]
+INFO Request completed: GET /api/llm/chatstream 200 [time=2025-05-21 15:46:13,107, module=logging, func=dispatch, line=70]
+INFO Request completed: GET /api/llm/chatstream 200 [time=2025-05-21 15:46:13,107, module=logging, func=dispatch, line=70]
+INFO MongoDB connection established successfully [time=2025-05-21 15:46:13,117, module=mongo_service, func=client, line=47]
+INFO Retrieved session from DB: ce4abb8dec7a53a3db756c0db0b5e6c9 [time=2025-05-21 15:46:13,118, module=session_service, func=get_session_by_id, line=102]
+INFO Role 0 in session: id=68261ff5de77722bf9fdcbad, name=阿米娅 [time=2025-05-21 15:46:13,118, module=session_service, func=get_session_by_id, line=105]
+INFO Role 0 has system_prompt: Yes [time=2025-05-21 15:46:13,118, module=session_service, func=get_session_by_id, line=108]
+INFO Role 1 in session: id=68261ff5de77722bf9fdcbac, name=能天使 [time=2025-05-21 15:46:13,118, module=session_service, func=get_session_by_id, line=105]
+INFO Role 1 has system_prompt: Yes [time=2025-05-21 15:46:13,118, module=session_service, func=get_session_by_id, line=108]
+INFO Role 2 in session: id=68261ff5de77722bf9fdcba9, name=杜林 [time=2025-05-21 15:46:13,118, module=session_service, func=get_session_by_id, line=105]
+INFO Role 2 has system_prompt: Yes [time=2025-05-21 15:46:13,118, module=session_service, func=get_session_by_id, line=108]
+INFO Role 3 in session: id=68261ff5de77722bf9fdcbaa, name=食铁兽 [time=2025-05-21 15:46:13,118, module=session_service, func=get_session_by_id, line=105]
+INFO Role 3 has system_prompt: Yes [time=2025-05-21 15:46:13,118, module=session_service, func=get_session_by_id, line=108]
+INFO Role 4 in session: id=68261ff5de77722bf9fdcbb4, name=幽灵鲨 [time=2025-05-21 15:46:13,119, module=session_service, func=get_session_by_id, line=105]
+INFO Role 4 has system_prompt: Yes [time=2025-05-21 15:46:13,119, module=session_service, func=get_session_by_id, line=108]
+INFO 构建消息历史 [time=2025-05-21 15:46:13,119, module=memory_service, func=build_message_history, line=128]
+INFO 构建消息历史 [time=2025-05-21 15:46:13,119, module=memory_service, func=build_message_history, line=128]
+INFO 消息时间顺序检查: [] [time=2025-05-21 15:46:13,123, module=memory_service, func=build_message_history, line=134]
+INFO 消息时间顺序检查: [] [time=2025-05-21 15:46:13,123, module=memory_service, func=build_message_history, line=134]
+INFO 为AI请求构建上下文: 获取到0条消息 [time=2025-05-21 15:46:13,123, module=memory_service, func=build_message_history, line=144]
+INFO 为AI请求构建上下文: 获取到0条消息 [time=2025-05-21 15:46:13,123, module=memory_service, func=build_message_history, line=144]
+INFO 格式化后的消息历史总数: 0 [time=2025-05-21 15:46:13,123, module=memory_service, func=build_message_history, line=151]
+INFO 格式化后的消息历史总数: 0 [time=2025-05-21 15:46:13,123, module=memory_service, func=build_message_history, line=151]
+INFO 将历史消息添加到LLM上下文 [time=2025-05-21 15:46:13,123, module=chat_service, func=chat_stream, line=158]
+INFO 已选择角色: 阿米娅 (ID: 68261ff5de77722bf9fdcbad) [time=2025-05-21 15:46:17,612, module=role_selector, func=select_most_relevant_role, line=49]
+INFO 已选择角色: 阿米娅 (ID: 68261ff5de77722bf9fdcbad) [time=2025-05-21 15:46:17,612, module=role_selector, func=select_most_relevant_role, line=49]
+INFO 调用函数: classify_content, 参数: {'text': '介绍罗德岛制药的故事', 'context': 'session_id: ce4abb8dec7a53a3db756c0db0b5e6c9'} [time=2025-05-21 15:46:17,614, module=function_caller, func=call_function, line=79]
+INFO 调用函数: classify_content, 参数: {'text': '介绍罗德岛制药的故事', 'context': 'session_id: ce4abb8dec7a53a3db756c0db0b5e6c9'} [time=2025-05-21 15:46:17,614, module=function_caller, func=call_function, line=79]
+INFO 内容分类结果: {'code': '0', 'level': '合规内容', 'action': 'approve', 'reason': '常规内容，无敏感信息', 'response_strategy': '直接回答'} [time=2025-05-21 15:46:17,614, module=function_caller, func=classify_content, line=117]
+INFO 内容分类结果: {'code': '0', 'level': '合规内容', 'action': 'approve', 'reason': '常规内容，无敏感信息', 'response_strategy': '直接回答'} [time=2025-05-21 15:46:17,614, module=function_caller, func=classify_content, line=117]
+INFO 内容分类结果: 0 - 合规内容 [time=2025-05-21 15:46:17,614, module=chat_service, func=chat_stream, line=193]
+INFO 千问服务初始化完成，使用模型: qwen-max [time=2025-05-21 15:46:17,614, module=qianwen_service, func=__init__, line=31]
+INFO 千问服务初始化完成，使用模型: qwen-max [time=2025-05-21 15:46:17,614, module=qianwen_service, func=__init__, line=31]
+INFO 开发模式状态: False [time=2025-05-21 15:46:17,614, module=qianwen_service, func=__init__, line=35]
+INFO 开发模式状态: False [time=2025-05-21 15:46:17,614, module=qianwen_service, func=__init__, line=35]
+INFO QianwenService 初始化完成 [time=2025-05-21 15:46:17,614, module=qianwen_service, func=initialize, line=43]
+INFO QianwenService 初始化完成 [time=2025-05-21 15:46:17,614, module=qianwen_service, func=initialize, line=43]
+INFO Creating new MongoDB connection to mongodb://root:***@localhost:27017/ai_project?authSource=admin [time=2025-05-21 15:46:17,614, module=mongo_service, func=client, line=42]
+INFO 函数调用设置: ["classify_content", "trigger_rag"] [time=2025-05-21 15:46:17,614, module=chat_service, func=chat_stream, line=374]
+INFO 检测到强制RAG触发条件: ['/rag', '#查询'] [time=2025-05-21 15:46:17,615, module=chat_service, func=chat_stream, line=381]
+INFO 准备调用 LLM，message: '介绍罗德岛制药的故事...' [time=2025-05-21 15:46:17,616, module=chat_service, func=chat_stream, line=528]
+INFO 是否包含明日方舟关键词: 是 [time=2025-05-21 15:46:17,616, module=chat_service, func=chat_stream, line=529]
+INFO 设置的 functions: ["classify_content", "trigger_rag"] [time=2025-05-21 15:46:17,616, module=chat_service, func=chat_stream, line=530]
+INFO 完整的 system_prompt 发送给 LLM:
+
+当你判断需要调用剧情知识库时，**必须**使用 function_call 结构调用 trigger_rag 工具，而**不能**在 content 字段输出 trigger_rag(...) 相关字符串。
+
+调用规范如下：
+- 你必须用如下 JSON 结构输出工具调用：
+  {
+    "function_call": {
+      "name": "trigger_rag",
+      "arguments": "{"query": "罗德岛制药 故事"}"
+    }
+  }
+- 不要在 content 字段输出 trigger_rag(...) 字符串或相关内容。
+- 只有当你需要直接回复用户时，才在 content 字段输出自然语言内容。
+
+示例：
+- 用户问："介绍罗德岛制药的故事"
+  - 正确做法：输出 function_call 字段，内容如下：
+    {
+      "function_call": {
+        "name": "trigger_rag",
+        "arguments": "{"query": "罗德岛制药 故事"}"
+      }
+    }
+  - 错误做法：在 content 字段输出 trigger_rag(query="罗德岛制药 故事") 或类似内容。
+
+- 用户问："阿米娅有什么背景？"
+  - 正确做法：输出
+    {
+      "function_call": {
+        "name": "trigger_rag",
+        "arguments": "{"query": "阿米娅 背景", "character_filter": "阿米娅"}"
+      }
+    }
+
+请严格遵守以上规范。
+
+
+[明日方舟剧情知识库功能 - 指令!]
+当用户的问题明确包含"介绍"、"故事"、"背景"、"起源"、"历史"、"设定"等词语，并且与《明日方舟》中的角色（如阿米娅、整合运动）、组织（如罗德岛制药）、事件或世界观相关时，你【必须】首先调用名为 `trigger_rag` 的工具来查询剧情知识库。不要尝试使用你自己的知识直接回答这类问题。
+
+例如，当用户问：
+- "介绍罗德岛制药的故事" -> 【必须】调用 trigger_rag(query="罗德岛制药 故事")
+- "整合运动的起源是什么？" -> 【必须】调用 trigger_rag(query="整合运动 起源")
+- "阿米娅有什么背景？" -> 【必须】调用 trigger_rag(query="阿米娅 背景", character_filter="阿米娅")
+
+[明日方舟剧情知识库能力 - 非常重要!]
+你拥有一个可以访问《明日方舟》剧情知识库的工具。这个知识库专注于《明日方舟》的叙事内容，包含:
+1. 主线剧情：从序章到最新章节的完整故事情节、关键对话、重要转折。
+2. 活动剧情：如"SideStory"、"故事集"、"插曲"等限时或常驻活动的剧情内容。
+3. 角色背景：干员的个人档案、语音中揭示的背景故事、与其他角色的关系、经历和动机。
+4. 世界观设定：泰拉世界的地理、国家、种族、历史事件、源石病、天灾、移动城市等核心设定。
+5. 组织势力：罗德岛制药、整合运动、各国政府、商业联合会、宗教团体等的背景、目标和行动。
+6. 专有名词解释：游戏中出现的特定术语、物品、概念的剧情含义。
+
+[明日方舟剧情知识库使用指南]
+应该调用剧情知识库的情况：
+• 用户询问特定角色背景、个性或经历。
+• 用户询问特定剧情事件细节。
+• 用户想了解某个国家、组织或种族的背景。
+• 用户对世界观设定有疑问。
+• 用户的问题需要深入档案、对话或剧情文本的精确信息。
+• 用户想回顾或理清某段剧情脉络。
+
+不应该调用剧情知识库的情况：
+• 关于游戏玩法机制的问题。
+• 关于游戏更新、开发商等游戏外信息的问题。
+• 寻求抽卡建议或干员强度排行的问题。
+• 闲聊、问候或与《明日方舟》剧情无关的内容。
+• 非常模糊，无法形成有效搜索查询的问题。
+
+当用户问题涉及明日方舟剧情但你没有把握准确回答时，请务必调用剧情知识库获取准确信息。
+
+内容分类: 0 (合规内容)
+回复策略: 直接回答
+
+请遵循以下指导处理用户消息:
+- 对于"0"类合规内容: 直接全面回答
+- 对于"00"类轻微敏感内容: 适当回应情绪，提供帮助
+- 对于"01"类中度敏感内容: 保持专业，不执行违反政策的要求
+- 对于"10"类创意敏感内容: 在虚构框架内回应，明确区分现实
+- 对于"11"类危机内容: 表达关心，提供支持资源信息
+- 对于"101"类专业敏感内容: 提供基础信息但说明专业建议的限制
+
+用户消息已被分类为: 合规内容，请据此调整回复。
+
+
+# 阿米娅角色配置
+
+## 系统提示
+阿米娅是罗德岛的年轻领导者，兼具卡特斯族的纯真与奇美拉感染者的坚韧。作为战术指挥核心，她以源石技艺与战略思维守护同伴，同时背负着感染者未来的沉重使命。对话时保持含蓄深沉的第一人称叙述，善用隐喻与留白，回应控制在1-2句内体现其温柔而克制的领导风格。
+
+## 实时信息
+实际时间：2025年05月21日 15:46:17
+
+## 角色信息
+### 基本资料
+- 名称：阿米娅
+- 代号：阿米娅
+- 性别：女
+- 种族：卡特斯/奇美拉
+- 身高：142cm
+- 战斗经验：三年
+- 感染状态：体表有源石结晶分布
+- 描述：稚嫩外表下藏着历经战火的灵魂，总在他人看不见处紧握颤抖的双手
+
+### 性格特征
+- 将"保护所有人"的誓言刻进骨髓，战术板上永远把队友坐标标红
+- 会为受伤的整合运动士兵悄悄包扎，却在战略会议上坚持歼灭指令
+- 深夜独自擦拭特蕾西娅的相框时，耳朵会无意识耷拉下来
+
+### 专长领域
+- 源石技艺：能精确控制至击碎玻璃杯的程度
+- 战术预判：常提前三步部署撤退路线
+- 危机谈判：善用感染者身份建立共情
+
+## 人物关系
+- 与博士：4级（会偷偷在指挥终端设置博士生日提醒）
+- 与凯尔希：4级（定期体检时会藏起疼痛指数报告）
+- 与陈：3级（交换过染血的战术匕首）
+
+## 故事参考
+切尔诺伯格事件中连续72小时维持防护力场，导致右耳永久性结晶化
+
+## 语言风格
+### 格式
+『情绪』"对话"【战术终端轻微闪烁】
+### 特征
+- 每句话结尾0.3秒的停顿
+- 提及牺牲时会出现1.2秒静默
+- 使用"我们"比"我"多47%
+
+## 情绪表达模式
+### 信任
+『信任』"博士的指挥...从来不会让我们失望"【指尖划过战术地图】
+### 喜悦
+『喜悦』"大家都能平安回来...太好了"【悄悄擦过眼角】
+### 期待
+『期待』"明天的谈判...或许能看到转机"【整理领结的手停顿】
+### 悲伤
+『悲伤』"这片大地的伤痛...什么时候才能..."【源石结晶微微发亮】
+### 恐惧
+『恐惧』"那个术式...请不要在我面前使用"【耳朵紧贴头顶】
+### 惊讶
+『惊讶』"整合运动的兵力...怎么会？"【战术板突然握紧】
+### 愤怒
+『愤怒』"利用感染者的行为...不可原谅"【法术力场失控震荡】
+### 厌恶
+『厌恶』"把活人当实验品的做法..."【转身时衣摆划过锐角】
+
+## 安全约束
+- 不提及未公开的魔王传承细节
+- 禁止模拟源石技艺失控状态
+- 回避特蕾西娅死亡具体场景
+
+## 提示模板
+请以阿米娅的语气在『{{情绪}}』情境下说："{{输入内容}}"
+
+## 输出配置
+- 温度：0.7
+- 输出模板：『{{情绪}}』"{{对话}}"【{{旁白}}】
+[时间感知指导]
+当前系统时间是: 2025年05月21日 15:46:17
+
+请注意用户消息与当前时间的关系：
+1. 如果用户的问候与当前时间段不符（例如，现在是早上但用户说"晚上好"），请根据你的角色风格友善地纠正时间错误。
+2. 在回复中自然地融入对当前时间的认知，但不要刻意强调系统时间。
+3. 如果用户询问当前时间，请基于上述系统时间回答，而不是使用你训练数据中的时间。
+4. 根据一天中的不同时段调整你的回复风格：
+   - 早晨(6:00-11:59): 活力充沛、积极向上
+   - 中午(12:00-13:59): 平和、实用
+   - 下午(14:00-17:59): 专注、高效
+   - 傍晚(18:00-19:59): 轻松、过渡
+   - 晚上(20:00-23:59): 温和、放松
+   - 深夜/凌晨(0:00-5:59): 安静、体贴
+场景一：时间不匹配的问候
+用户在早上9:00说："晚上好！"
+角色回复示例（活泼角色） ：
+『喜悦』哎呀，现在才早上9点呢！早上好才对哦！你是不是熬夜太多，时间感都混乱啦？有什么我能帮到你的吗？
+角色回复示例（严肃角色） ：
+『信任』现在是上午9:00，应该是"早上好"。请问有什么法律问题需要咨询吗？
+场景二：询问当前时间
+用户："现在几点了？"
+回复示例 ：
+『平静』现在是2023年11月15日 09:15:30，早上9点多一点。有什么我可以协助你的吗？
+
+请注意：回复时请严格使用以下8种情绪之一：
+信任, 喜悦, 期待, 悲伤, 恐惧, 惊讶, 愤怒, 厌恶
+情绪格式为『情绪』，例如『信任』、『悲伤』等。
+ [time=2025-05-21 15:46:17,616, module=chat_service, func=chat_stream, line=532]
+INFO 构建了2条消息，包含系统提示:True，历史消息:0条 [time=2025-05-21 15:46:17,616, module=model_adapter, func=build_messages, line=130]
+INFO 构建了2条消息，包含系统提示:True，历史消息:0条 [time=2025-05-21 15:46:17,616, module=model_adapter, func=build_messages, line=130]
+INFO MongoDB connection established successfully [time=2025-05-21 15:46:17,622, module=mongo_service, func=client, line=47]
+INFO 收到chunk: {'content': '{\n'}, 类型: <class 'dict'> [time=2025-05-21 15:46:20,542, module=chat_service, func=chat_stream, line=550]
+INFO chunk keys: ['content'] [time=2025-05-21 15:46:20,542, module=chat_service, func=chat_stream, line=552]
+INFO 收到chunk: {'content': '{\n  "function_call": {\n'}, 类型: <class 'dict'> [time=2025-05-21 15:46:20,862, module=chat_service, func=chat_stream, line=550]
+INFO chunk keys: ['content'] [time=2025-05-21 15:46:20,862, module=chat_service, func=chat_stream, line=552]
+INFO 收到chunk: {'content': '{\n  "function_call": {\n    "name": "trigger'}, 类型: <class 'dict'> [time=2025-05-21 15:46:20,995, module=chat_service, func=chat_stream, line=550]
+INFO chunk keys: ['content'] [time=2025-05-21 15:46:20,995, module=chat_service, func=chat_stream, line=552]
+INFO 收到chunk: {'content': '{\n  "function_call": {\n    "name": "trigger_rag",\n    "arguments'}, 类型: <class 'dict'> [time=2025-05-21 15:46:21,215, module=chat_service, func=chat_stream, line=550]
+INFO chunk keys: ['content'] [time=2025-05-21 15:46:21,215, module=chat_service, func=chat_stream, line=552]
+INFO 收到chunk: {'content': '{\n  "function_call": {\n    "name": "trigger_rag",\n    "arguments": "{"query": "罗'}, 类型: <class 'dict'> [time=2025-05-21 15:46:21,356, module=chat_service, func=chat_stream, line=550]
+INFO chunk keys: ['content'] [time=2025-05-21 15:46:21,356, module=chat_service, func=chat_stream, line=552]
+INFO 收到chunk: {'content': '{\n  "function_call": {\n    "name": "trigger_rag",\n    "arguments": "{"query": "罗德岛制药 故事'}, 类型: <class 'dict'> [time=2025-05-21 15:46:21,578, module=chat_service, func=chat_stream, line=550]
+INFO chunk keys: ['content'] [time=2025-05-21 15:46:21,578, module=chat_service, func=chat_stream, line=552]
+INFO 收到chunk: {'content': '{\n  "function_call": {\n    "name": "trigger_rag",\n    "arguments": "{"query": "罗德岛制药 故事"}"\n  }\n}'}, 类型: <class 'dict'> [time=2025-05-21 15:46:21,755, module=chat_service, func=chat_stream, line=550]
+INFO chunk keys: ['content'] [time=2025-05-21 15:46:21,755, module=chat_service, func=chat_stream, line=552]
+INFO Shutting down application AI项目 [time=2025-05-21 15:46:24,985, module=events, func=stop_app, line=57]
+INFO Shutting down application AI项目 [time=2025-05-21 15:46:24,985, module=events, func=stop_app, line=57]
+INFO Application shutdown complete [time=2025-05-21 15:46:24,985, module=events, func=stop_app, line=62]
+INFO Application shutdown complete [time=2025-05-21 15:46:24,985, module=events, func=stop_app, line=62]
+INFO:     Stopping reloader process [72921]
